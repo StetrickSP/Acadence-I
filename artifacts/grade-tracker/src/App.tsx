@@ -15,6 +15,7 @@ import Grades from '@/pages/grades';
 import Assignments from '@/pages/assignments';
 import Analytics from '@/pages/analytics';
 import Predictions from '@/pages/predictions';
+import ImportExport from '@/pages/import-export';
 import Home from '@/pages/home';
 import NotFound from '@/pages/not-found';
 import Portal from '@/pages/portal';
@@ -214,6 +215,7 @@ function Router() {
       <Route path="/assignments" component={() => <AdminRoute component={Assignments} />} />
       <Route path="/analytics" component={() => <AdminRoute component={Analytics} />} />
       <Route path="/predictions" component={() => <AdminRoute component={Predictions} />} />
+      <Route path="/import-export" component={() => <AdminRoute component={ImportExport} />} />
       <Route path="/claim" component={() => (
         <Show when="signed-in" fallback={<Redirect to="/sign-in" />}>
           <Claim />
