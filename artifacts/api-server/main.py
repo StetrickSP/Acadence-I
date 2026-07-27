@@ -16,6 +16,7 @@ from src.routes.predictions import router as predictions_router
 from src.routes.dashboard import router as dashboard_router
 from src.routes.me import router as me_router
 from src.routes.import_export import router as import_export_router
+from src.routes.reports import router as reports_router
 
 app = FastAPI(title="University Grade Tracker API", version="2.0.0")
 
@@ -46,6 +47,7 @@ app.include_router(predictions_router, prefix=prefix)
 app.include_router(dashboard_router, prefix=prefix)
 app.include_router(me_router, prefix=prefix)
 app.include_router(import_export_router, prefix=prefix)
+app.include_router(reports_router, prefix=prefix)
 
 
 @app.get("/api/healthz")

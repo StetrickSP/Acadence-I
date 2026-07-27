@@ -3,11 +3,12 @@ import { PortalShell } from "@/components/portal-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { GradeBadge } from "@/components/grade-badge";
 import { RiskBadge } from "@/components/risk-badge";
 import { StatCard } from "@/components/stat-card";
-import { BookOpen, TrendingUp, AlertTriangle, User, ChevronDown, ChevronUp } from "lucide-react";
+import { BookOpen, TrendingUp, AlertTriangle, User, ChevronDown, ChevronUp, Download } from "lucide-react";
 import type { StudentIdentity } from "@/hooks/useStudentIdentity";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -89,6 +90,17 @@ function CourseCard({ course, detail, prediction }: {
 }) {
   const [open, setOpen] = useState(false);
 
+  function handleDownloadDistribution(e: React.MouseEvent) {
+    e.stopPropagation();
+    const url = `${apiBase}/reports/grade-distribution/${course.course_id}.png`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `grade-distribution-${course.course_code}.png`;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.click();
+  }
+
   return (
     <Card className="overflow-hidden">
       <CardHeader
@@ -116,7 +128,7 @@ function CourseCard({ course, detail, prediction }: {
               {course.semester} · {course.credits} credit{course.credits !== 1 ? "s" : ""}
             </p>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {course.display_label ? (
               course.grading_scheme === "pass_fail" ? (
                 <span
@@ -130,6 +142,15 @@ function CourseCard({ course, detail, prediction }: {
             ) : (
               <span className="text-xs text-muted-foreground">No grades yet</span>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-7 h-7 text-muted-foreground hover:text-primary"
+              title="Download grade distribution chart"
+              onClick={handleDownloadDistribution}
+            >
+              <Download className="w-3.5 h-3.5" />
+            </Button>
             {open ? (
               <ChevronUp className="w-4 h-4 text-muted-foreground" />
             ) : (
@@ -314,6 +335,57 @@ export default function Portal({ profile }: PortalProps) {
               </CardContent>
             </Card>
           )}
+        </div>
+
+        {/* Download Reports */}
+        <div>
+          <h2 className="text-lg font-display font-semibold mb-4">Download Reports</h2>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                Export your grade reports as PNG charts — suitable for printing or sharing.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    const url = `${apiBase}/reports/gpa-trend/${profile.id}.png`;
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `gpa-trend-${profile.studentId}.png`;
+                    a.target = "_blank";
+                    a.rel = "noopener noreferrer";
+                    a.click();
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                  GPA Trend Chart
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    const url = `${apiBase}/reports/radar/${profile.id}.png`;
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `performance-radar-${profile.studentId}.png`;
+                    a.target = "_blank";
+                    a.rel = "noopener noreferrer";
+                    a.click();
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                  Performance by Type
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Per-course grade distribution charts are available via the <Download className="inline w-3 h-3 mx-0.5" /> icon on each course card above.
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* GPA Breakdown */}
