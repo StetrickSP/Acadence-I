@@ -1,12 +1,14 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { getAuth } from "@clerk/express";
+import { getAuth, createClerkClient } from "@clerk/express";
 import { db, studentsTable, enrollmentsTable, coursesTable, assignmentsTable, gradesTable } from "@workspace/db";
 import type { GradingScheme } from "@workspace/db";
 import { StudentModel } from "../domain/StudentModel";
 import type { AssignmentScore } from "../domain/GradeBook";
 import { GradeBookFactory } from "../domain/GradeBookFactory";
 import { riskLevel } from "../lib/gradeUtils";
+
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 const router: IRouter = Router();
 
@@ -104,6 +106,31 @@ async function loadStudentCourseGrades(studentId: number) {
   return courseGrades;
 }
 
+/**
+ * Fetch the signed-in user's primary email from Clerk's backend API.
+ * Session claims don't include email by default, so we call the Users API instead.
+ */
+async function getClerkEmail(userId: string): Promise<string | null> {
+  try {
+    const user = await clerkClient.users.getUser(userId);
+    const primary = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId);
+    return primary?.emailAddress ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Middleware: require a signed-in Clerk user (any authenticated user)
+async function requireAuth(req: any, res: any, next: any) {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in" });
+    return;
+  }
+  req.clerkUserId = userId;
+  next();
+}
+
 // Middleware: require a signed-in Clerk user who matches a student record
 async function requireStudent(req: any, res: any, next: any) {
   const { userId } = getAuth(req);
@@ -112,12 +139,8 @@ async function requireStudent(req: any, res: any, next: any) {
     return;
   }
 
-  // Get primary email from Clerk's session claims
-  const sessionClaims = (req as any).auth?.sessionClaims;
-  const clerkEmail =
-    sessionClaims?.email ??
-    sessionClaims?.["primary_email"] ??
-    null;
+  // Fetch email from Clerk's backend API (not session claims, which don't include it by default)
+  const clerkEmail = await getClerkEmail(userId);
 
   const student = await resolveStudent(userId, clerkEmail);
   if (!student) {
@@ -128,6 +151,67 @@ async function requireStudent(req: any, res: any, next: any) {
   req.student = student;
   next();
 }
+
+/**
+ * POST /api/me/claim
+ * Link the signed-in Clerk account to a student record by human-readable Student ID.
+ * Returns 404 if the student ID doesn't exist, 409 if already claimed by another account.
+ */
+router.post("/me/claim", requireAuth, async (req: any, res): Promise<void> => {
+  const clerkUserId: string = req.clerkUserId;
+  const { studentId } = req.body ?? {};
+
+  if (!studentId || typeof studentId !== "string") {
+    res.status(400).json({ error: "studentId is required" });
+    return;
+  }
+
+  // If this Clerk account is already linked to a student, return that profile
+  const alreadyClaimed = await db
+    .select()
+    .from(studentsTable)
+    .where(eq(studentsTable.clerkUserId, clerkUserId))
+    .limit(1);
+  if (alreadyClaimed[0]) {
+    const s = alreadyClaimed[0];
+    res.json({ id: s.id, name: s.name, email: s.email, studentId: s.studentId, year: s.year, major: s.major, role: "student" });
+    return;
+  }
+
+  // Find student record by student ID (case-insensitive)
+  const rows = await db
+    .select()
+    .from(studentsTable)
+    .where(eq(studentsTable.studentId, studentId.trim().toUpperCase()))
+    .limit(1);
+
+  if (!rows[0]) {
+    res.status(404).json({ error: "No student found with that ID" });
+    return;
+  }
+
+  // Already claimed by a different Clerk account
+  if (rows[0].clerkUserId && rows[0].clerkUserId !== clerkUserId) {
+    res.status(409).json({ error: "This student account is already linked to another login" });
+    return;
+  }
+
+  const [linked] = await db
+    .update(studentsTable)
+    .set({ clerkUserId })
+    .where(eq(studentsTable.id, rows[0].id))
+    .returning();
+
+  res.json({
+    id: linked.id,
+    name: linked.name,
+    email: linked.email,
+    studentId: linked.studentId,
+    year: linked.year,
+    major: linked.major,
+    role: "student",
+  });
+});
 
 /** GET /api/me/profile */
 router.get("/me/profile", requireStudent, async (req: any, res): Promise<void> => {

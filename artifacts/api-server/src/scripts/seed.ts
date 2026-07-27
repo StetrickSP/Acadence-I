@@ -7,6 +7,21 @@ import {
   gradesTable,
 } from "@workspace/db";
 
+/**
+ * TEST ACCOUNTS — use these to log in as a student after running the seed.
+ *
+ * Option A — Auto-link by email:
+ *   Sign up in Clerk using one of the emails below; the account links automatically.
+ *
+ *   alice.chen@university.edu      → Alice Chen   (S001) — CS Year 3, strong student
+ *   brian.taylor@university.edu    → Brian Taylor  (S002) — Math Year 2, average
+ *   carla.rodriguez@university.edu → Carla Rodriguez (S003) — Physics Year 4, at-risk
+ *   david.kim@university.edu       → David Kim     (S004) — Engineering Year 1
+ *   emma.wilson@university.edu     → Emma Wilson   (S005) — CS Year 3, top student
+ *
+ * Option B — Claim by Student ID:
+ *   Sign up with any email, then go to /claim and enter S001–S005.
+ */
 async function seed() {
   console.log("🌱 Seeding database...");
 

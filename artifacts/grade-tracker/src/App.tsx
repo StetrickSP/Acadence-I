@@ -18,6 +18,7 @@ import Predictions from '@/pages/predictions';
 import Home from '@/pages/home';
 import NotFound from '@/pages/not-found';
 import Portal from '@/pages/portal';
+import Claim from '@/pages/claim';
 import { useStudentIdentity } from '@/hooks/useStudentIdentity';
 
 // REQUIRED — copy verbatim per Clerk skill
@@ -133,8 +134,23 @@ function DashboardOrPortal() {
   if (identity.status === 'student') {
     return <Portal profile={identity.profile} />;
   }
-  // explicit admin signal
-  return <Dashboard />;
+  // explicit admin signal — show dashboard with a claim-account nudge
+  return (
+    <>
+      <div className="bg-blue-50 border-b border-blue-200 px-4 py-2.5 flex items-center justify-between gap-4 text-sm">
+        <span className="text-blue-700">
+          Not seeing your student portal?
+        </span>
+        <a
+          href={`${basePath}/claim`}
+          className="font-semibold text-blue-700 hover:text-blue-900 underline underline-offset-2 shrink-0"
+        >
+          Claim your student account →
+        </a>
+      </div>
+      <Dashboard />
+    </>
+  );
 }
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -198,6 +214,11 @@ function Router() {
       <Route path="/assignments" component={() => <AdminRoute component={Assignments} />} />
       <Route path="/analytics" component={() => <AdminRoute component={Analytics} />} />
       <Route path="/predictions" component={() => <AdminRoute component={Predictions} />} />
+      <Route path="/claim" component={() => (
+        <Show when="signed-in" fallback={<Redirect to="/sign-in" />}>
+          <Claim />
+        </Show>
+      )} />
       <Route component={NotFound} />
     </Switch>
   );
