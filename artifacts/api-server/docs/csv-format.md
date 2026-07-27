@@ -20,6 +20,20 @@ The grade import endpoints accept CSV files with the following format.
 |---------|-----------------------------------------------------------------------------------------------|
 | `type`  | `midterm`, `final`, `assignment`, `quiz`, `homework`, `project`, or `exam`. Informational only.|
 
+## Header row
+
+The header row is **optional**. If omitted, the parser auto-detects the file as
+headerless provided it has exactly **3 or 4 columns**, which are then mapped
+positionally to `student_id`, `assignment_name`, `score` (and optionally `type`).
+
+Files with a header row continue to work in any column order (existing behaviour).
+
+If a headerless file has a column count other than 3 or 4, the import fails with:
+
+```
+CSV has no recognisable header row. Add a first row: student_id,assignment_name,score,type
+```
+
 ---
 
 ## Single import endpoint

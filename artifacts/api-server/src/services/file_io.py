@@ -129,9 +129,40 @@ class FileIOService:
         except UnicodeDecodeError:
             text = file_bytes.decode("latin-1")
 
+        # ── Header detection ──────────────────────────────────────────────
+        # Peek at the first row with csv.reader to decide whether a header
+        # is present.  If the first row does NOT contain the required column
+        # names but has exactly 3 or 4 fields we treat the file as headerless
+        # and inject the canonical positional header before re-parsing.
+        first_line_io = io.StringIO(text)
+        sniffer = csv.reader(first_line_io)
+        try:
+            first_row = next(sniffer)
+        except StopIteration:
+            result.errors.append(RowError(0, "CSV file is empty"))
+            return result
+
+        first_row_lower = {cell.strip().lower() for cell in first_row}
+        has_header = bool(REQUIRED_COLS & first_row_lower)
+
+        if not has_header:
+            col_count = len(first_row)
+            if col_count == 3:
+                synthetic_header = "student_id,assignment_name,score\n"
+            elif col_count == 4:
+                synthetic_header = "student_id,assignment_name,score,type\n"
+            else:
+                result.errors.append(RowError(
+                    0,
+                    "CSV has no recognisable header row. "
+                    "Add a first row: student_id,assignment_name,score,type",
+                ))
+                return result
+            text = synthetic_header + text
+
         reader = csv.DictReader(io.StringIO(text))
 
-        # Validate headers
+        # Validate headers (covers edge-cases like a header row with wrong names)
         if not reader.fieldnames:
             result.errors.append(RowError(0, "CSV file is empty or has no header row"))
             return result
@@ -139,7 +170,11 @@ class FileIOService:
         headers = {h.strip().lower() for h in reader.fieldnames}
         missing = REQUIRED_COLS - headers
         if missing:
-            result.errors.append(RowError(0, f"Missing required columns: {', '.join(sorted(missing))}"))
+            result.errors.append(RowError(
+                0,
+                f"Missing required columns: {', '.join(sorted(missing))}. "
+                "Expected header row: student_id,assignment_name,score,type",
+            ))
             return result
 
         # Build lookup caches for this course

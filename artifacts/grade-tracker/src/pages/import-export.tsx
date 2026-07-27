@@ -57,10 +57,13 @@ function CsvFormatHint() {
             <code className="bg-blue-100 px-1 rounded">type</code>{' '}
             (midterm, final, assignment, quiz, homework, project, exam)
           </p>
-          <p className="text-blue-600 text-xs font-mono">
+          <p className="text-blue-600 text-xs font-mono mb-2">
             student_id,assignment_name,score,type<br />
             S001,Midterm Exam,85,midterm<br />
             S002,Assignment 1,90,assignment
+          </p>
+          <p className="text-blue-600 text-xs">
+            <span className="font-medium">Tip:</span> The header row is optional — if omitted, columns must be in the order shown above (3 or 4 columns).
           </p>
         </div>
       </div>
