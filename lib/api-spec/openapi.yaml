@@ -3,20 +3,36 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: University Course Performance Tracker & Grade Prediction API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: students
+    description: Student management
+  - name: courses
+    description: Course management
+  - name: enrollments
+    description: Enrollment management
+  - name: assignments
+    description: Assignment management
+  - name: grades
+    description: Grade management
+  - name: analytics
+    description: Analytics and statistics
+  - name: predictions
+    description: Grade predictions
+  - name: dashboard
+    description: Dashboard summaries
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +40,1059 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Students ───────────────────────────────────────────────────
+  /students:
+    get:
+      operationId: listStudents
+      tags: [students]
+      summary: List all students
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: major
+          schema: { type: string }
+        - in: query
+          name: year
+          schema: { type: integer }
+      responses:
+        "200":
+          description: List of students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+    post:
+      operationId: createStudent
+      tags: [students]
+      summary: Create a student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+
+  /students/{id}:
+    get:
+      operationId: getStudent
+      tags: [students]
+      summary: Get a student by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "404":
+          description: Not found
+    put:
+      operationId: updateStudent
+      tags: [students]
+      summary: Update a student
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+    delete:
+      operationId: deleteStudent
+      tags: [students]
+      summary: Delete a student
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  /students/{id}/gpa:
+    get:
+      operationId: getStudentGpa
+      tags: [students]
+      summary: Get student GPA and grade summary
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Student GPA details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentGpa"
+
+  /students/{id}/courses:
+    get:
+      operationId: getStudentCourses
+      tags: [students]
+      summary: Get courses a student is enrolled in
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Student's courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentCourseDetail"
+
+  # ─── Courses ─────────────────────────────────────────────────────
+  /courses:
+    get:
+      operationId: listCourses
+      tags: [courses]
+      summary: List all courses
+      parameters:
+        - in: query
+          name: semester
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Course"
+    post:
+      operationId: createCourse
+      tags: [courses]
+      summary: Create a course
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+
+  /courses/{id}:
+    get:
+      operationId: getCourse
+      tags: [courses]
+      summary: Get a course
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Course
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+    put:
+      operationId: updateCourse
+      tags: [courses]
+      summary: Update a course
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+    delete:
+      operationId: deleteCourse
+      tags: [courses]
+      summary: Delete a course
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  /courses/{id}/students:
+    get:
+      operationId: getCourseStudents
+      tags: [courses]
+      summary: List students enrolled in a course
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Enrolled students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+
+  /courses/{id}/stats:
+    get:
+      operationId: getCourseStats
+      tags: [courses]
+      summary: Get grade stats for a course
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Course statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseStats"
+
+  # ─── Enrollments ─────────────────────────────────────────────────
+  /enrollments:
+    get:
+      operationId: listEnrollments
+      tags: [enrollments]
+      summary: List enrollments
+      parameters:
+        - in: query
+          name: student_id
+          schema: { type: integer }
+        - in: query
+          name: course_id
+          schema: { type: integer }
+        - in: query
+          name: semester
+          schema: { type: string }
+      responses:
+        "200":
+          description: Enrollments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Enrollment"
+    post:
+      operationId: createEnrollment
+      tags: [enrollments]
+      summary: Enroll a student in a course
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnrollmentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enrollment"
+
+  /enrollments/{id}:
+    delete:
+      operationId: deleteEnrollment
+      tags: [enrollments]
+      summary: Remove an enrollment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Assignments ──────────────────────────────────────────────────
+  /assignments:
+    get:
+      operationId: listAssignments
+      tags: [assignments]
+      summary: List assignments
+      parameters:
+        - in: query
+          name: course_id
+          schema: { type: integer }
+        - in: query
+          name: type
+          schema: { type: string }
+      responses:
+        "200":
+          description: Assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Assignment"
+    post:
+      operationId: createAssignment
+      tags: [assignments]
+      summary: Create an assignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignmentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+
+  /assignments/{id}:
+    get:
+      operationId: getAssignment
+      tags: [assignments]
+      summary: Get an assignment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Assignment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+    put:
+      operationId: updateAssignment
+      tags: [assignments]
+      summary: Update an assignment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignmentUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assignment"
+    delete:
+      operationId: deleteAssignment
+      tags: [assignments]
+      summary: Delete an assignment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Grades ───────────────────────────────────────────────────────
+  /grades:
+    get:
+      operationId: listGrades
+      tags: [grades]
+      summary: List grades
+      parameters:
+        - in: query
+          name: student_id
+          schema: { type: integer }
+        - in: query
+          name: course_id
+          schema: { type: integer }
+        - in: query
+          name: assignment_id
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Grades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Grade"
+    post:
+      operationId: createGrade
+      tags: [grades]
+      summary: Submit a grade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GradeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grade"
+
+  /grades/{id}:
+    put:
+      operationId: updateGrade
+      tags: [grades]
+      summary: Update a grade
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GradeUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grade"
+    delete:
+      operationId: deleteGrade
+      tags: [grades]
+      summary: Delete a grade
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Analytics ───────────────────────────────────────────────────
+  /analytics/grade-distribution:
+    get:
+      operationId: getGradeDistribution
+      tags: [analytics]
+      summary: Get grade distribution for a course
+      parameters:
+        - in: query
+          name: course_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Grade distribution buckets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GradeDistribution"
+
+  /analytics/at-risk:
+    get:
+      operationId: getAtRiskStudents
+      tags: [analytics]
+      summary: Get at-risk students (below threshold)
+      parameters:
+        - in: query
+          name: course_id
+          schema: { type: integer }
+        - in: query
+          name: threshold
+          schema: { type: number }
+          description: GPA threshold, defaults to 2.0
+      responses:
+        "200":
+          description: At-risk student list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AtRiskStudent"
+
+  /analytics/course-performance:
+    get:
+      operationId: getCoursePerformance
+      tags: [analytics]
+      summary: Compare performance across all courses
+      responses:
+        "200":
+          description: Course performance comparison
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CoursePerformance"
+
+  /analytics/semester-trends:
+    get:
+      operationId: getSemesterTrends
+      tags: [analytics]
+      summary: Get GPA trends across semesters
+      parameters:
+        - in: query
+          name: student_id
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Semester trend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SemesterTrend"
+
+  /analytics/assignment-completion:
+    get:
+      operationId: getAssignmentCompletion
+      tags: [analytics]
+      summary: Get assignment completion rates per course
+      parameters:
+        - in: query
+          name: course_id
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Completion rates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AssignmentCompletion"
+
+  # ─── Predictions ──────────────────────────────────────────────────
+  /predictions/grade:
+    post:
+      operationId: predictGrade
+      tags: [predictions]
+      summary: Predict a student's final grade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GradePredictionInput"
+      responses:
+        "200":
+          description: Grade prediction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GradePrediction"
+
+  /predictions/at-risk/{courseId}:
+    get:
+      operationId: predictAtRisk
+      tags: [predictions]
+      summary: Predict at-risk students in a course using ML
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: At-risk predictions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AtRiskPrediction"
+
+  # ─── Dashboard ────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get overall system summary
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent grade submissions and enrollments
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Recent activity feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/top-performers:
+    get:
+      operationId: getTopPerformers
+      tags: [dashboard]
+      summary: Get top-performing students
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Top performers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TopPerformer"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
-        status:
-          type: string
-      required:
-        - status
+        status: { type: string }
 
+    # ── Student ──────────────────────────────────────────────────────
+    Student:
+      type: object
+      required: [id, name, email, student_id, year, major, created_at]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        student_id: { type: string }
+        year: { type: integer }
+        major: { type: string }
+        gpa: { type: ["number", "null"] }
+        created_at: { type: string }
+
+    StudentInput:
+      type: object
+      required: [name, email, student_id, year, major]
+      properties:
+        name: { type: string }
+        email: { type: string }
+        student_id: { type: string }
+        year: { type: integer }
+        major: { type: string }
+
+    StudentUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string }
+        year: { type: integer }
+        major: { type: string }
+
+    StudentGpa:
+      type: object
+      required: [student_id, gpa, total_courses, completed_courses, letter_grade]
+      properties:
+        student_id: { type: integer }
+        gpa: { type: number }
+        total_courses: { type: integer }
+        completed_courses: { type: integer }
+        letter_grade: { type: string }
+        grade_points_breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseGradePoint"
+
+    CourseGradePoint:
+      type: object
+      required: [course_name, grade, grade_points, credits]
+      properties:
+        course_name: { type: string }
+        grade: { type: string }
+        grade_points: { type: number }
+        credits: { type: integer }
+
+    StudentCourseDetail:
+      type: object
+      required: [course_id, course_name, course_code, semester, current_grade, letter_grade, credits]
+      properties:
+        course_id: { type: integer }
+        course_name: { type: string }
+        course_code: { type: string }
+        semester: { type: string }
+        current_grade: { type: ["number", "null"] }
+        letter_grade: { type: ["string", "null"] }
+        credits: { type: integer }
+
+    # ── Course ───────────────────────────────────────────────────────
+    Course:
+      type: object
+      required: [id, code, name, credits, semester, instructor, created_at]
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        credits: { type: integer }
+        semester: { type: string }
+        instructor: { type: string }
+        description: { type: ["string", "null"] }
+        student_count: { type: ["integer", "null"] }
+        average_grade: { type: ["number", "null"] }
+        created_at: { type: string }
+
+    CourseInput:
+      type: object
+      required: [code, name, credits, semester, instructor]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        credits: { type: integer }
+        semester: { type: string }
+        instructor: { type: string }
+        description: { type: string }
+
+    CourseUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        credits: { type: integer }
+        semester: { type: string }
+        instructor: { type: string }
+        description: { type: string }
+
+    CourseStats:
+      type: object
+      required: [course_id, average_grade, median_grade, pass_rate, fail_rate, highest_grade, lowest_grade, student_count]
+      properties:
+        course_id: { type: integer }
+        average_grade: { type: number }
+        median_grade: { type: number }
+        pass_rate: { type: number }
+        fail_rate: { type: number }
+        highest_grade: { type: number }
+        lowest_grade: { type: number }
+        student_count: { type: integer }
+        std_deviation: { type: ["number", "null"] }
+
+    # ── Enrollment ────────────────────────────────────────────────────
+    Enrollment:
+      type: object
+      required: [id, student_id, course_id, semester, enrolled_at]
+      properties:
+        id: { type: integer }
+        student_id: { type: integer }
+        course_id: { type: integer }
+        semester: { type: string }
+        enrolled_at: { type: string }
+        student_name: { type: ["string", "null"] }
+        course_name: { type: ["string", "null"] }
+
+    EnrollmentInput:
+      type: object
+      required: [student_id, course_id, semester]
+      properties:
+        student_id: { type: integer }
+        course_id: { type: integer }
+        semester: { type: string }
+
+    # ── Assignment ────────────────────────────────────────────────────
+    Assignment:
+      type: object
+      required: [id, course_id, name, type, max_score, weight, created_at]
+      properties:
+        id: { type: integer }
+        course_id: { type: integer }
+        name: { type: string }
+        type: { type: string, description: "midterm|final|assignment|quiz|project" }
+        max_score: { type: number }
+        weight: { type: number, description: "Weight 0-1 as percentage" }
+        due_date: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+        created_at: { type: string }
+
+    AssignmentInput:
+      type: object
+      required: [course_id, name, type, max_score, weight]
+      properties:
+        course_id: { type: integer }
+        name: { type: string }
+        type: { type: string }
+        max_score: { type: number }
+        weight: { type: number }
+        due_date: { type: string }
+        description: { type: string }
+
+    AssignmentUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        type: { type: string }
+        max_score: { type: number }
+        weight: { type: number }
+        due_date: { type: string }
+        description: { type: string }
+
+    # ── Grade ─────────────────────────────────────────────────────────
+    Grade:
+      type: object
+      required: [id, student_id, assignment_id, score, submitted_at]
+      properties:
+        id: { type: integer }
+        student_id: { type: integer }
+        assignment_id: { type: integer }
+        score: { type: number }
+        percentage: { type: ["number", "null"] }
+        letter_grade: { type: ["string", "null"] }
+        feedback: { type: ["string", "null"] }
+        submitted_at: { type: string }
+        student_name: { type: ["string", "null"] }
+        assignment_name: { type: ["string", "null"] }
+        course_id: { type: ["integer", "null"] }
+
+    GradeInput:
+      type: object
+      required: [student_id, assignment_id, score]
+      properties:
+        student_id: { type: integer }
+        assignment_id: { type: integer }
+        score: { type: number }
+        feedback: { type: string }
+
+    GradeUpdate:
+      type: object
+      properties:
+        score: { type: number }
+        feedback: { type: string }
+
+    # ── Analytics ─────────────────────────────────────────────────────
+    GradeDistribution:
+      type: object
+      required: [course_id, buckets, letter_counts]
+      properties:
+        course_id: { type: integer }
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/GradeBucket"
+        letter_counts:
+          type: array
+          items:
+            $ref: "#/components/schemas/LetterCount"
+
+    GradeBucket:
+      type: object
+      required: [range, count]
+      properties:
+        range: { type: string }
+        count: { type: integer }
+        percentage: { type: number }
+
+    LetterCount:
+      type: object
+      required: [letter, count]
+      properties:
+        letter: { type: string }
+        count: { type: integer }
+        percentage: { type: number }
+
+    AtRiskStudent:
+      type: object
+      required: [student_id, student_name, current_grade, letter_grade, course_name, risk_level]
+      properties:
+        student_id: { type: integer }
+        student_name: { type: string }
+        current_grade: { type: number }
+        letter_grade: { type: string }
+        course_name: { type: string }
+        course_id: { type: integer }
+        assignments_missing: { type: integer }
+        risk_level: { type: string, description: "high|medium|low" }
+
+    CoursePerformance:
+      type: object
+      required: [course_id, course_name, average_grade, pass_rate, student_count, semester]
+      properties:
+        course_id: { type: integer }
+        course_name: { type: string }
+        average_grade: { type: number }
+        pass_rate: { type: number }
+        student_count: { type: integer }
+        semester: { type: string }
+        difficulty_score: { type: ["number", "null"] }
+
+    SemesterTrend:
+      type: object
+      required: [semester, gpa, courses_taken]
+      properties:
+        semester: { type: string }
+        gpa: { type: number }
+        courses_taken: { type: integer }
+        student_id: { type: ["integer", "null"] }
+
+    AssignmentCompletion:
+      type: object
+      required: [assignment_id, assignment_name, type, submitted_count, total_enrolled, completion_rate, average_score]
+      properties:
+        assignment_id: { type: integer }
+        assignment_name: { type: string }
+        type: { type: string }
+        submitted_count: { type: integer }
+        total_enrolled: { type: integer }
+        completion_rate: { type: number }
+        average_score: { type: ["number", "null"] }
+
+    # ── Predictions ───────────────────────────────────────────────────
+    GradePredictionInput:
+      type: object
+      required: [student_id, course_id]
+      properties:
+        student_id: { type: integer }
+        course_id: { type: integer }
+        midterm_score: { type: ["number", "null"] }
+        assignment_completion_rate: { type: ["number", "null"] }
+
+    GradePrediction:
+      type: object
+      required: [student_id, course_id, predicted_score, predicted_letter, confidence, risk_level]
+      properties:
+        student_id: { type: integer }
+        course_id: { type: integer }
+        predicted_score: { type: number }
+        predicted_letter: { type: string }
+        confidence: { type: number }
+        risk_level: { type: string }
+        factors:
+          type: array
+          items:
+            $ref: "#/components/schemas/PredictionFactor"
+
+    PredictionFactor:
+      type: object
+      required: [factor, weight, value]
+      properties:
+        factor: { type: string }
+        weight: { type: number }
+        value: { type: number }
+
+    AtRiskPrediction:
+      type: object
+      required: [student_id, student_name, predicted_score, predicted_letter, risk_level, confidence]
+      properties:
+        student_id: { type: integer }
+        student_name: { type: string }
+        predicted_score: { type: number }
+        predicted_letter: { type: string }
+        risk_level: { type: string }
+        confidence: { type: number }
+        current_score: { type: ["number", "null"] }
+
+    # ── Dashboard ─────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      required: [total_students, total_courses, total_enrollments, total_grades, average_gpa, at_risk_count, pass_rate]
+      properties:
+        total_students: { type: integer }
+        total_courses: { type: integer }
+        total_enrollments: { type: integer }
+        total_grades: { type: integer }
+        average_gpa: { type: number }
+        at_risk_count: { type: integer }
+        pass_rate: { type: number }
+        grade_distribution_overview:
+          type: array
+          items:
+            $ref: "#/components/schemas/LetterCount"
+
+    ActivityItem:
+      type: object
+      required: [id, type, description, timestamp]
+      properties:
+        id: { type: integer }
+        type: { type: string, description: "grade_submitted|enrollment|assignment_created" }
+        description: { type: string }
+        timestamp: { type: string }
+        entity_id: { type: ["integer", "null"] }
+        entity_type: { type: ["string", "null"] }
+
+    TopPerformer:
+      type: object
+      required: [student_id, student_name, gpa, major, year]
+      properties:
+        student_id: { type: integer }
+        student_name: { type: string }
+        gpa: { type: number }
+        major: { type: string }
+        year: { type: integer }
+        rank: { type: integer }

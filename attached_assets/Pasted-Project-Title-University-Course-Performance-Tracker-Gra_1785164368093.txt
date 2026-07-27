@@ -1,0 +1,17 @@
+Project Title 
+University Course Performance Tracker & Grade Prediction System
+Mentor
+
+
+Project Description
+Develop a Python application that manages student academic records, processes grade data from various file formats, stores in a database, performs statistical analysis on academic performance, and uses simple ML to predict final grades based on midterm scores and assignment completion rates. 
+Syllabus Coverage: Comprehensive coverage including OOP (Student, Course, GradeBook class hierarchy with inheritance and abstract classes), advanced functions (lambda for grade calculation, decorators for access control), JSON/CSV file processing (importing/exporting grade sheets), SQLite database (student records, courses, enrollments), Pandas (grade statistics, performance analysis), MatPlotLib (grade distributions, performance trends), multi-threading (batch file processing), and AI application (grade prediction model). 
+Expected Deliverables: 
+SP1 - OOP grade management system: Abstract Person class -> Student, Instructor. Course class with enrollment management. GradeBook class using polymorphism for different grading schemes (weighted, curved, pass/fail). 
+SP2 - File I/O module: Import grades from CSV files (midterm, final, assignments). Export reports to JSON. Batch processing of multiple class files using multi-threading. 
+SP3 - SQLite database: Students, Courses, Enrollments, Grades, Assignments tables with proper foreign keys. Complex SQL queries for GPA calculation, class rankings, at-risk student identification. 
+SP4 - Analytics engine: Pandas-based analysis including grade distributions, pass/fail rates, correlation between attendance and grades, semester-over-semester trends. 
+SP5 - Visualization reports: MatPlotLib charts including grade distribution histograms, GPA trend lines, course difficulty comparison, performance radar charts. 
+SP6 - Grade prediction module: Simple AI model using historical data to predict final grades based on midterm scores, assignment completion rate, and attendance. Alert system for at-risk students. 
+SP7 - Web-based data entry: Simple Selenium-automated form for data entry testing.
+

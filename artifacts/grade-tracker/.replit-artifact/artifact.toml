@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "University Grade Tracker"
+version = "1.0.0"
+id = "artifacts/grade-tracker"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19471
+
+[services.development]
+run = "pnpm --filter @workspace/grade-tracker run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/grade-tracker", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/grade-tracker/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19471"
+BASE_PATH = "/"
