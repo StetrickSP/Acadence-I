@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, ilike, and, sql } from "drizzle-orm";
 import { db, studentsTable, enrollmentsTable, coursesTable, assignmentsTable, gradesTable } from "@workspace/db";
+import type { GradingScheme } from "@workspace/db";
 import {
   ListStudentsQueryParams,
   CreateStudentBody,
@@ -10,10 +11,12 @@ import {
   DeleteStudentParams,
 } from "@workspace/api-zod";
 import { scoreToLetter, toPercent, letterToPoints } from "../lib/gradeUtils";
+import { StudentModel } from "../domain/StudentModel";
+import type { AssignmentScore } from "../domain/GradeBook";
 
 const router: IRouter = Router();
 
-// Helper: compute GPA for a student
+// Helper: compute GPA for a student using per-course GradeBook
 async function computeStudentGpa(studentId: number): Promise<number | null> {
   const enrollments = await db
     .select({ courseId: enrollmentsTable.courseId })
@@ -22,8 +25,7 @@ async function computeStudentGpa(studentId: number): Promise<number | null> {
 
   if (enrollments.length === 0) return null;
 
-  let totalPoints = 0;
-  let totalCredits = 0;
+  const courseGrades = [];
 
   for (const enr of enrollments) {
     const course = await db
@@ -38,8 +40,7 @@ async function computeStudentGpa(studentId: number): Promise<number | null> {
       .from(assignmentsTable)
       .where(eq(assignmentsTable.courseId, enr.courseId));
 
-    let weightedScore = 0;
-    let totalWeight = 0;
+    const scores: AssignmentScore[] = [];
     for (const asgn of assignments) {
       const gradeRows = await db
         .select()
@@ -52,21 +53,32 @@ async function computeStudentGpa(studentId: number): Promise<number | null> {
         )
         .limit(1);
       if (gradeRows[0]) {
-        const pct = toPercent(Number(gradeRows[0].score), Number(asgn.maxScore));
-        weightedScore += pct * Number(asgn.weight);
-        totalWeight += Number(asgn.weight);
+        scores.push({
+          assignmentId: asgn.id,
+          score: Number(gradeRows[0].score),
+          maxScore: Number(asgn.maxScore),
+          weight: Number(asgn.weight),
+          name: asgn.name,
+          type: asgn.type,
+        });
       }
     }
-    if (totalWeight > 0) {
-      const finalPct = weightedScore / totalWeight;
-      const letter = scoreToLetter(finalPct);
-      totalPoints += letterToPoints(letter) * course[0].credits;
-      totalCredits += course[0].credits;
-    }
+
+    const gradeInfo = StudentModel.computeCourseGrade(
+      scores,
+      course[0].id,
+      course[0].name,
+      course[0].code,
+      course[0].credits,
+      course[0].semester,
+      course[0].gradingScheme as GradingScheme,
+    );
+    courseGrades.push(gradeInfo);
   }
 
-  if (totalCredits === 0) return null;
-  return Math.round((totalPoints / totalCredits) * 100) / 100;
+  // Use StudentModel to calculate GPA (excludes pass/fail courses)
+  const dummy = new StudentModel(studentId, "", "", "", 0, "");
+  return dummy.calculateGPA(courseGrades);
 }
 
 router.get("/students", async (req, res): Promise<void> => {
@@ -203,37 +215,53 @@ router.get("/students/:id/gpa", async (req, res): Promise<void> => {
     .from(enrollmentsTable)
     .where(eq(enrollmentsTable.studentId, id));
 
-  let totalPoints = 0;
-  let totalCredits = 0;
-  const breakdown = [];
+  const courseGrades = [];
 
   for (const enr of enrollments) {
     const course = await db.select().from(coursesTable).where(eq(coursesTable.id, enr.courseId)).limit(1);
     if (!course[0]) continue;
 
     const assignments = await db.select().from(assignmentsTable).where(eq(assignmentsTable.courseId, enr.courseId));
-    let weightedScore = 0;
-    let totalWeight = 0;
+    const scores: AssignmentScore[] = [];
     for (const asgn of assignments) {
       const gradeRows = await db.select().from(gradesTable).where(and(eq(gradesTable.studentId, id), eq(gradesTable.assignmentId, asgn.id))).limit(1);
       if (gradeRows[0]) {
-        const pct = toPercent(Number(gradeRows[0].score), Number(asgn.maxScore));
-        weightedScore += pct * Number(asgn.weight);
-        totalWeight += Number(asgn.weight);
+        scores.push({
+          assignmentId: asgn.id,
+          score: Number(gradeRows[0].score),
+          maxScore: Number(asgn.maxScore),
+          weight: Number(asgn.weight),
+          name: asgn.name,
+          type: asgn.type,
+        });
       }
     }
-    if (totalWeight > 0) {
-      const finalPct = weightedScore / totalWeight;
-      const letter = scoreToLetter(finalPct);
-      const gp = letterToPoints(letter);
-      totalPoints += gp * course[0].credits;
-      totalCredits += course[0].credits;
-      breakdown.push({ course_name: course[0].name, grade: letter, grade_points: gp, credits: course[0].credits });
-    }
+
+    const gradeInfo = StudentModel.computeCourseGrade(
+      scores,
+      course[0].id,
+      course[0].name,
+      course[0].code,
+      course[0].credits,
+      course[0].semester,
+      course[0].gradingScheme as GradingScheme,
+    );
+    courseGrades.push(gradeInfo);
   }
 
-  const gpa = totalCredits > 0 ? Math.round((totalPoints / totalCredits) * 100) / 100 : 0;
+  const dummy = new StudentModel(id, "", "", "", 0, "");
+  const gpa = dummy.calculateGPA(courseGrades) ?? 0;
   const letter = scoreToLetter((gpa / 4) * 100);
+
+  const breakdown = courseGrades
+    .filter((c) => c.letterGrade !== null)
+    .map((c) => ({
+      course_name: c.courseName,
+      grade: c.displayLabel ?? c.letterGrade,
+      grade_points: c.gradePoints,
+      credits: c.credits,
+      grading_scheme: c.gradingScheme,
+    }));
 
   res.json({
     student_id: id,
@@ -264,32 +292,41 @@ router.get("/students/:id/courses", async (req, res): Promise<void> => {
     if (!course[0]) continue;
 
     const assignments = await db.select().from(assignmentsTable).where(eq(assignmentsTable.courseId, enr.courseId));
-    let weightedScore = 0;
-    let totalWeight = 0;
+    const scores: AssignmentScore[] = [];
     for (const asgn of assignments) {
       const gradeRows = await db.select().from(gradesTable).where(and(eq(gradesTable.studentId, id), eq(gradesTable.assignmentId, asgn.id))).limit(1);
       if (gradeRows[0]) {
-        const pct = toPercent(Number(gradeRows[0].score), Number(asgn.maxScore));
-        weightedScore += pct * Number(asgn.weight);
-        totalWeight += Number(asgn.weight);
+        scores.push({
+          assignmentId: asgn.id,
+          score: Number(gradeRows[0].score),
+          maxScore: Number(asgn.maxScore),
+          weight: Number(asgn.weight),
+          name: asgn.name,
+          type: asgn.type,
+        });
       }
     }
 
-    let currentGrade: number | null = null;
-    let letterGrade: string | null = null;
-    if (totalWeight > 0) {
-      currentGrade = Math.round((weightedScore / totalWeight) * 10) / 10;
-      letterGrade = scoreToLetter(currentGrade);
-    }
+    const gradeInfo = StudentModel.computeCourseGrade(
+      scores,
+      course[0].id,
+      course[0].name,
+      course[0].code,
+      course[0].credits,
+      enr.semester,
+      course[0].gradingScheme as GradingScheme,
+    );
 
     result.push({
-      course_id: course[0].id,
-      course_name: course[0].name,
-      course_code: course[0].code,
-      semester: enr.semester,
-      current_grade: currentGrade,
-      letter_grade: letterGrade,
-      credits: course[0].credits,
+      course_id: gradeInfo.courseId,
+      course_name: gradeInfo.courseName,
+      course_code: gradeInfo.courseCode,
+      semester: gradeInfo.semester,
+      current_grade: gradeInfo.percentage,
+      letter_grade: gradeInfo.letterGrade,
+      display_label: gradeInfo.displayLabel,
+      grading_scheme: gradeInfo.gradingScheme,
+      credits: gradeInfo.credits,
     });
   }
 

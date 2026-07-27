@@ -2,6 +2,9 @@ import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+export const GRADING_SCHEMES = ["weighted", "curved", "pass_fail"] as const;
+export type GradingScheme = (typeof GRADING_SCHEMES)[number];
+
 export const coursesTable = pgTable("courses", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),
@@ -10,6 +13,10 @@ export const coursesTable = pgTable("courses", {
   semester: text("semester").notNull(),
   instructor: text("instructor").notNull(),
   description: text("description"),
+  gradingScheme: text("grading_scheme")
+    .$type<GradingScheme>()
+    .notNull()
+    .default("weighted"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

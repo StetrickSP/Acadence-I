@@ -17,6 +17,8 @@ import Analytics from '@/pages/analytics';
 import Predictions from '@/pages/predictions';
 import Home from '@/pages/home';
 import NotFound from '@/pages/not-found';
+import Portal from '@/pages/portal';
+import { useStudentIdentity } from '@/hooks/useStudentIdentity';
 
 // REQUIRED — copy verbatim per Clerk skill
 const clerkPubKey = publishableKeyFromHost(
@@ -97,6 +99,44 @@ function HomeRedirect() {
   );
 }
 
+/**
+ * Smart dashboard entry point: students see the portal, admins see the full dashboard.
+ * Fails closed — identity errors show a retry screen rather than granting admin access.
+ */
+function DashboardOrPortal() {
+  const identity = useStudentIdentity();
+
+  if (identity.status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground text-sm">Loading…</div>
+      </div>
+    );
+  }
+  if (identity.status === 'unauthenticated') {
+    return <Redirect to="/" />;
+  }
+  if (identity.status === 'error') {
+    // Fail closed: don't grant admin access on unknown errors — show a retry prompt
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 p-6 text-center">
+        <p className="text-muted-foreground text-sm">Unable to verify your account. Please refresh and try again.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          Refresh
+        </button>
+      </div>
+    );
+  }
+  if (identity.status === 'student') {
+    return <Portal profile={identity.profile} />;
+  }
+  // explicit admin signal
+  return <Dashboard />;
+}
+
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   return (
     <>
@@ -108,6 +148,27 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
       </Show>
     </>
   );
+}
+
+/**
+ * Admin-only route: fail closed on any non-admin identity.
+ * Students → /dashboard. Error/unknown → /dashboard (never grant admin by default).
+ */
+function AdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const identity = useStudentIdentity();
+  if (identity.status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground text-sm">Loading…</div>
+      </div>
+    );
+  }
+  // Fail closed: unauthenticated, student, and error all get redirected away
+  if (identity.status === 'unauthenticated') return <Redirect to="/" />;
+  if (identity.status === 'student') return <Redirect to="/dashboard" />;
+  if (identity.status === 'error') return <Redirect to="/dashboard" />;
+  // Only explicit admin signal passes through
+  return <Component />;
 }
 
 function Router() {
@@ -124,15 +185,19 @@ function Router() {
           <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} fallbackRedirectUrl={`${basePath}/dashboard`} />
         </div>
       )} />
-      <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/students/:id" component={() => <ProtectedRoute component={StudentDetail} />} />
-      <Route path="/students" component={() => <ProtectedRoute component={Students} />} />
-      <Route path="/courses/:id" component={() => <ProtectedRoute component={CourseDetail} />} />
-      <Route path="/courses" component={() => <ProtectedRoute component={Courses} />} />
-      <Route path="/grades" component={() => <ProtectedRoute component={Grades} />} />
-      <Route path="/assignments" component={() => <ProtectedRoute component={Assignments} />} />
-      <Route path="/analytics" component={() => <ProtectedRoute component={Analytics} />} />
-      <Route path="/predictions" component={() => <ProtectedRoute component={Predictions} />} />
+      <Route path="/dashboard" component={() => (
+        <Show when="signed-in" fallback={<Redirect to="/" />}>
+          <DashboardOrPortal />
+        </Show>
+      )} />
+      <Route path="/students/:id" component={() => <AdminRoute component={StudentDetail} />} />
+      <Route path="/students" component={() => <AdminRoute component={Students} />} />
+      <Route path="/courses/:id" component={() => <AdminRoute component={CourseDetail} />} />
+      <Route path="/courses" component={() => <AdminRoute component={Courses} />} />
+      <Route path="/grades" component={() => <AdminRoute component={Grades} />} />
+      <Route path="/assignments" component={() => <AdminRoute component={Assignments} />} />
+      <Route path="/analytics" component={() => <AdminRoute component={Analytics} />} />
+      <Route path="/predictions" component={() => <AdminRoute component={Predictions} />} />
       <Route component={NotFound} />
     </Switch>
   );

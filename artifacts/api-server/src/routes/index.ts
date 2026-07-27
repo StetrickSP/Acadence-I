@@ -8,10 +8,12 @@ import gradesRouter from "./grades";
 import analyticsRouter from "./analytics";
 import predictionsRouter from "./predictions";
 import dashboardRouter from "./dashboard";
+import meRouter from "./me";
 
 const router = Router();
 
 router.use(healthRouter);
+router.use(meRouter);
 router.use(studentsRouter);
 router.use(coursesRouter);
 router.use(enrollmentsRouter);

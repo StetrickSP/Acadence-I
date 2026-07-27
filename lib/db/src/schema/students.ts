@@ -9,6 +9,7 @@ export const studentsTable = pgTable("students", {
   studentId: text("student_id").notNull().unique(),
   year: integer("year").notNull(),
   major: text("major").notNull(),
+  clerkUserId: text("clerk_user_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -1,0 +1,11 @@
+export { GradeBook } from "./GradeBook";
+export type { AssignmentScore, GradeResult } from "./GradeBook";
+export { WeightedGradeBook } from "./WeightedGradeBook";
+export { CurvedGradeBook } from "./CurvedGradeBook";
+export { PassFailGradeBook } from "./PassFailGradeBook";
+export { GradeBookFactory } from "./GradeBookFactory";
+export { Person } from "./Person";
+export { StudentModel } from "./StudentModel";
+export type { CourseGradeInfo } from "./StudentModel";
+export { Instructor } from "./Instructor";
+export { CourseModel } from "./CourseModel";

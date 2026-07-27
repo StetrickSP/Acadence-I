@@ -24,13 +24,13 @@ async function seed() {
 
   console.log(`✅ Inserted ${students.length} students`);
 
-  // Courses
+  // Courses — each tagged with a grading scheme
   const courses = await db
     .insert(coursesTable)
     .values([
-      { code: "CS-301", name: "Algorithms & Data Structures", credits: 4, semester: "Fall 2024", instructor: "Dr. Sarah Johnson", description: "Advanced algorithmic thinking and data structure design." },
-      { code: "MATH-201", name: "Linear Algebra", credits: 3, semester: "Fall 2024", instructor: "Prof. Michael Lee", description: "Vectors, matrices, and linear transformations." },
-      { code: "CS-401", name: "Machine Learning", credits: 3, semester: "Fall 2024", instructor: "Dr. Rachel Park", description: "Introduction to ML models and statistical learning." },
+      { code: "CS-301", name: "Algorithms & Data Structures", credits: 4, semester: "Fall 2024", instructor: "Dr. Sarah Johnson", description: "Advanced algorithmic thinking and data structure design.", gradingScheme: "weighted" as const },
+      { code: "MATH-201", name: "Linear Algebra", credits: 3, semester: "Fall 2024", instructor: "Prof. Michael Lee", description: "Vectors, matrices, and linear transformations.", gradingScheme: "curved" as const },
+      { code: "CS-401", name: "Machine Learning", credits: 3, semester: "Fall 2024", instructor: "Dr. Rachel Park", description: "Introduction to ML models and statistical learning.", gradingScheme: "pass_fail" as const },
     ])
     .returning();
 
