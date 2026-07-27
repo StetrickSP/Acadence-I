@@ -225,9 +225,12 @@ export default function Portal({ profile }: PortalProps) {
     queryFn: () => fetch(`${apiBase}/me/grades`, { credentials: "include" }).then((r) => r.json()),
   });
 
-  const { data: predictions } = useQuery<PredictionItem[]>({
+  const { data: predictions = [] } = useQuery<PredictionItem[]>({
     queryKey: ["me/predictions"],
-    queryFn: () => fetch(`${apiBase}/me/predictions`, { credentials: "include" }).then((r) => r.json()),
+    queryFn: () =>
+      fetch(`${apiBase}/me/predictions`, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => (Array.isArray(d) ? d : [])),
   });
 
   const atRiskCount = predictions?.filter((p) => p.risk_level === "high").length ?? 0;
