@@ -1,7 +1,10 @@
 """FastAPI entry-point for the University Grade Tracker API."""
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from src.auth.clerk import _NoStudentException
 
 from src.routes.students import router as students_router
 from src.routes.courses import router as courses_router
@@ -15,6 +18,13 @@ from src.routes.me import router as me_router
 from src.routes.import_export import router as import_export_router
 
 app = FastAPI(title="University Grade Tracker API", version="2.0.0")
+
+
+@app.exception_handler(_NoStudentException)
+async def no_student_handler(request: Request, exc: _NoStudentException):
+    """Return a flat 403 body so the frontend hook can read body.isAdmin directly."""
+    return JSONResponse(status_code=403, content={"isAdmin": True})
+
 
 app.add_middleware(
     CORSMiddleware,

@@ -18,6 +18,7 @@ from typing import Optional
 
 import jwt
 from fastapi import Request, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from src.db.models import StudentRow
@@ -202,8 +203,12 @@ def get_student_from_request(request: Request, db: Session) -> StudentRow:
     student = _resolve_student(db, user_id, clerk_email)
 
     if not student:
-        raise HTTPException(
-            status_code=403,
-            detail={"error": "No student record linked to this account", "isAdmin": True},
-        )
+        # Return a plain JSONResponse so the body is {"isAdmin": true} at the top level.
+        # HTTPException wraps dict details inside {"detail": ...}, which the frontend
+        # hook cannot see when checking body?.isAdmin === true.
+        raise _NoStudentException()
     return student
+
+
+class _NoStudentException(Exception):
+    """Sentinel raised when no student row is linked to the verified Clerk user."""
