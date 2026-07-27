@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { GradeBadge } from '@/components/grade-badge';
 import { RiskBadge } from '@/components/risk-badge';
+import { Download } from 'lucide-react';
 import { Link } from 'wouter';
 import {
   useGetCoursePerformance,
@@ -145,6 +147,29 @@ export default function Analytics() {
             </Card>
           )}
         </div>
+
+        {/* Course Difficulty Chart */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg font-display">Course Difficulty Comparison</CardTitle>
+            <a href="/api/reports/course-difficulty.png" download="course-difficulty.png">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Download className="w-3.5 h-3.5" />
+                Download PNG
+              </Button>
+            </a>
+          </CardHeader>
+          <CardContent>
+            <img
+              src="/api/reports/course-difficulty.png"
+              alt="Course difficulty comparison chart"
+              className="w-full rounded-md"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          </CardContent>
+        </Card>
 
         {/* At-Risk Students Table */}
         <Card>

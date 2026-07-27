@@ -109,6 +109,48 @@ def create_student(body: CreateStudentBody, db: Session = Depends(get_db)):
     return _fmt_student(row, None)
 
 
+@router.get("/students/rankings")
+def get_course_rankings(
+    course_id: int = Query(..., description="Course ID to rank students within"),
+    db: Session = Depends(get_db),
+):
+    """Return students ranked 1–N within a course by weighted average score."""
+    course = db.query(CourseRow).filter(CourseRow.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    enrollments = db.query(EnrollmentRow).filter(EnrollmentRow.course_id == course_id).all()
+    if not enrollments:
+        return []
+
+    ranked = []
+    for enr in enrollments:
+        student = db.query(StudentRow).filter(StudentRow.id == enr.student_id).first()
+        if not student:
+            continue
+        gi = _compute_course_grade(db, enr.student_id, course, enr.semester)
+        ranked.append({
+            "student_id": student.id,
+            "student_name": student.name,
+            "score": gi.percentage,
+            "letter_grade": gi.letter_grade or "N/A",
+        })
+
+    # Sort descending by score (None → treat as 0)
+    ranked.sort(key=lambda x: x["score"] if x["score"] is not None else 0.0, reverse=True)
+
+    return [
+        {
+            "rank": i + 1,
+            "student_id": r["student_id"],
+            "student_name": r["student_name"],
+            "score": round(r["score"], 1) if r["score"] is not None else None,
+            "letter_grade": r["letter_grade"],
+        }
+        for i, r in enumerate(ranked)
+    ]
+
+
 @router.get("/students/{student_id}")
 def get_student(student_id: int, db: Session = Depends(get_db)):
     s = db.query(StudentRow).filter(StudentRow.id == student_id).first()

@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 import io
-from typing import Optional
+from typing import List, Optional
 
 import matplotlib
 matplotlib.use("Agg")  # non-interactive backend, must be set before pyplot import
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -255,6 +255,92 @@ def radar_chart(student_id: int, request: Request, db: Session = Depends(get_db)
         f"Performance by Assignment Type\n{student.name}",
         fontsize=13, fontweight="bold", pad=20,
     )
+
+    fig.tight_layout()
+    return _png_response(fig)
+
+
+# ---------------------------------------------------------------------------
+# 4. Course Difficulty horizontal bar chart
+# ---------------------------------------------------------------------------
+
+@router.get("/reports/course-difficulty.png")
+def course_difficulty_chart(
+    request: Request,
+    course_ids: Optional[str] = Query(None, description="Comma-separated course IDs to filter"),
+    db: Session = Depends(get_db),
+):
+    """Return a Matplotlib horizontal bar chart comparing difficulty scores across courses.
+
+    Requires a valid Clerk session. Any authenticated user may view this chart.
+    Optional ?course_ids=1,2,3 to filter to specific courses.
+    """
+    require_auth(request)
+
+    svc = PandasAnalyticsService(db)
+    performance = svc.course_performance()
+
+    # Filter by course IDs if provided
+    if course_ids:
+        try:
+            id_set = {int(x.strip()) for x in course_ids.split(",") if x.strip()}
+            performance = [p for p in performance if p["course_id"] in id_set]
+        except ValueError:
+            pass
+
+    # Only include courses that have a difficulty score
+    performance = [p for p in performance if p.get("difficulty_score") is not None]
+
+    if not performance:
+        fig, ax = plt.subplots(figsize=(9, 4))
+        fig.patch.set_facecolor(_BG)
+        ax.set_facecolor(_BG)
+        ax.text(0.5, 0.5, "No course data available yet",
+                ha="center", va="center", fontsize=13, color="#888888",
+                transform=ax.transAxes)
+        ax.set_title("Course Difficulty Comparison", fontsize=14, fontweight="bold", pad=14)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        return _png_response(fig)
+
+    # Sort by difficulty descending so hardest courses are at the top
+    performance = sorted(performance, key=lambda x: x["difficulty_score"], reverse=True)
+
+    names = [p["course_name"] for p in performance]
+    scores = [p["difficulty_score"] for p in performance]
+
+    # Colour-map: higher difficulty → warmer colour
+    norm_scores = np.array(scores, dtype=float)
+    max_s = float(max(norm_scores)) if max(norm_scores) > 0 else 1.0
+    colors = [_PALETTE[min(4, int((s / max_s) * 4))] for s in norm_scores]
+
+    fig_height = max(4, len(names) * 0.6 + 1.5)
+    fig, ax = plt.subplots(figsize=(10, fig_height))
+    fig.patch.set_facecolor(_BG)
+    ax.set_facecolor(_BG)
+
+    bars = ax.barh(names, scores, color=colors, edgecolor="white", linewidth=0.8, zorder=3)
+
+    # Annotate each bar
+    for bar, score in zip(bars, scores):
+        ax.text(
+            bar.get_width() + 0.5,
+            bar.get_y() + bar.get_height() / 2,
+            f"{score:.1f}",
+            va="center", fontsize=9, color="#333333",
+        )
+
+    ax.set_xlim(0, max(scores) * 1.15 if scores else 100)
+    ax.set_xlabel("Difficulty Score (100 − avg grade %)", fontsize=11, labelpad=8)
+    ax.set_title("Course Difficulty Comparison", fontsize=14, fontweight="bold", pad=14)
+    ax.xaxis.grid(True, color=_GRID_COLOR, linestyle="--", linewidth=0.7, zorder=0)
+    ax.set_axisbelow(True)
+    ax.tick_params(axis="y", labelsize=9)
+    ax.tick_params(axis="x", labelsize=9)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
 
     fig.tight_layout()
     return _png_response(fig)

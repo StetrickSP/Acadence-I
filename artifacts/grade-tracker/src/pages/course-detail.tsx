@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { useParams, Link } from 'wouter';
 import { AppShell } from '@/components/app-shell';
 import { GradeBadge } from '@/components/grade-badge';
 import { RiskBadge } from '@/components/risk-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, BookOpen, TrendingUp } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Trophy } from 'lucide-react';
 import {
   useGetCourse,
   useGetCourseStats,
@@ -12,6 +13,7 @@ import {
   useGetAtRiskStudents,
   usePredictAtRisk,
   useGetGradeDistribution,
+  useGetCourseRankings,
 } from '@workspace/api-client-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -21,6 +23,7 @@ import {
 export default function CourseDetail() {
   const params = useParams();
   const courseId = Number(params.id);
+  const [rankingsOpen, setRankingsOpen] = useState(false);
 
   const { data: course, isLoading: courseLoading } = useGetCourse(courseId);
   const { data: stats, isLoading: statsLoading } = useGetCourseStats(courseId);
@@ -28,6 +31,7 @@ export default function CourseDetail() {
   const { data: atRiskStudents } = useGetAtRiskStudents({ course_id: courseId });
   const { data: predictions } = usePredictAtRisk(courseId);
   const { data: distribution } = useGetGradeDistribution({ course_id: courseId });
+  const { data: rankings, isLoading: rankingsLoading } = useGetCourseRankings(courseId);
 
   if (courseLoading) {
     return (
@@ -190,6 +194,74 @@ export default function CourseDetail() {
             </CardContent>
           </Card>
         )}
+
+        {/* Class Rankings */}
+        <Card>
+          <CardHeader
+            className="cursor-pointer select-none flex flex-row items-center justify-between"
+            onClick={() => setRankingsOpen((o) => !o)}
+          >
+            <div className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-500" />
+              <CardTitle className="text-lg font-display">Class Rankings</CardTitle>
+              {rankings && (
+                <span className="text-xs text-muted-foreground font-normal">({rankings.length} students)</span>
+              )}
+            </div>
+            {rankingsOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </CardHeader>
+          {rankingsOpen && (
+            <CardContent>
+              {rankingsLoading ? (
+                <div className="space-y-2">
+                  {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10" />)}
+                </div>
+              ) : rankings && rankings.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-border">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-muted-foreground font-medium w-12">Rank</th>
+                        <th className="text-left px-3 py-2 text-muted-foreground font-medium">Student</th>
+                        <th className="text-right px-3 py-2 text-muted-foreground font-medium">Score</th>
+                        <th className="text-center px-3 py-2 text-muted-foreground font-medium">Grade</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {rankings.map((r) => (
+                        <tr key={r.student_id} className="hover:bg-muted/30">
+                          <td className="px-3 py-2.5">
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
+                              r.rank === 1 ? 'bg-amber-100 text-amber-700' :
+                              r.rank === 2 ? 'bg-slate-100 text-slate-600' :
+                              r.rank === 3 ? 'bg-orange-100 text-orange-700' :
+                              'bg-muted text-muted-foreground'
+                            }`}>
+                              {r.rank}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <Link href={`/students/${r.student_id}`}>
+                              <span className="font-medium text-primary hover:underline cursor-pointer">{r.student_name}</span>
+                            </Link>
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono font-semibold">
+                            {r.score != null ? `${r.score.toFixed(1)}%` : '—'}
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            <GradeBadge letter={r.letter_grade} size="sm" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8 text-sm">No grade data available yet</p>
+              )}
+            </CardContent>
+          )}
+        </Card>
 
         {/* Student List */}
         <Card>
