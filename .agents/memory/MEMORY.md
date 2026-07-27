@@ -1,0 +1,1 @@
+- [Post-merge Python deps](post-merge-python-deps.md) — task agents don't install packages on the main Repl; install manually after any merge that adds new Python imports.
