@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Users, BookOpen, ClipboardList, FileText, TrendingUp, AlertTriangle, Menu, X, ArrowUpDown } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, ClipboardList, FileText, TrendingUp, AlertTriangle, Menu, X } from 'lucide-react';
 import { useClerk, useUser } from '@clerk/react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -16,7 +16,6 @@ const navigation = [
   { name: 'Assignments', href: '/assignments', icon: FileText },
   { name: 'Analytics', href: '/analytics', icon: TrendingUp },
   { name: 'Predictions', href: '/predictions', icon: AlertTriangle },
-  { name: 'Import / Export', href: '/import-export', icon: ArrowUpDown },
 ];
 
 interface AppShellProps {

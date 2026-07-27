@@ -11,11 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, ClipboardList } from 'lucide-react';
+import { Plus, ClipboardList, ArrowUpDown } from 'lucide-react';
 import {
   useListGrades, useCreateGrade, useListStudents, useListCourses, useListAssignments,
   getListGradesQueryKey,
 } from '@workspace/api-client-react';
+import { ImportExportDialog } from '@/components/import-export-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +32,7 @@ export default function Grades() {
   const [filterStudentId, setFilterStudentId] = useState<string>('');
   const [filterCourseId, setFilterCourseId] = useState<string>('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importExportOpen, setImportExportOpen] = useState(false);
 
   const { data: grades, isLoading } = useListGrades({
     student_id: filterStudentId ? Number(filterStudentId) : undefined,
@@ -74,7 +76,11 @@ export default function Grades() {
             <h1 className="text-3xl font-display font-bold text-foreground mb-2">Grades</h1>
             <p className="text-muted-foreground">Record and review student grades</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setImportExportOpen(true)}>
+              <ArrowUpDown className="w-4 h-4" /> Import / Export
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2" data-testid="button-add-grade">
                 <Plus className="w-4 h-4" /> Record Grade
@@ -130,8 +136,15 @@ export default function Grades() {
                 </form>
               </Form>
             </DialogContent>
-          </Dialog>
-        </div>
+            </Dialog>
+          </div>{/* end flex gap-2 */}
+        </div>{/* end flex justify-between */}
+
+        <ImportExportDialog
+          open={importExportOpen}
+          onOpenChange={setImportExportOpen}
+          onImportSuccess={() => queryClient.invalidateQueries({ queryKey: getListGradesQueryKey() })}
+        />
 
         {/* Filters */}
         <Card>
