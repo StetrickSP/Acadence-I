@@ -1,1 +1,2 @@
 - [Post-merge Python deps](post-merge-python-deps.md) — task agents don't install packages on the main Repl; install manually after any merge that adds new Python imports.
+- [Artifact directory constraint](artifact-directory-constraint.md) — artifacts must live under artifacts/ or proxy routing breaks; use artifacts/client and artifacts/server, not top-level client/ and server/.

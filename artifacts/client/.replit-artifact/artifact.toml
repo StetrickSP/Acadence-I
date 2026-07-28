@@ -16,7 +16,7 @@ run = "pnpm --filter @workspace/grade-tracker run dev"
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/grade-tracker", "run", "build" ]
 serve = "static"
-publicDir = "client/dist/public"
+publicDir = "artifacts/client/dist/public"
 
 [[services.production.rewrites]]
 from = "/*"
