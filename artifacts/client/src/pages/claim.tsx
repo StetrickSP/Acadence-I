@@ -64,7 +64,7 @@ export default function Claim() {
         <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
           <GraduationCap className="w-5 h-5 text-white" />
         </div>
-        <span className="text-lg font-bold text-gray-900">Grade Tracker</span>
+        <span className="text-lg font-bold text-gray-900">Acadence</span>
       </div>
 
       <Card className="w-full max-w-md shadow-lg">

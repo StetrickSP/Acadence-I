@@ -33,7 +33,7 @@ export function PortalShell({ children }: PortalShellProps) {
               <GraduationCap className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <span className="text-sm font-display font-bold text-foreground">Grade Tracker</span>
+              <span className="text-sm font-display font-bold text-foreground">Acadence</span>
               <span className="ml-2 text-xs text-muted-foreground font-medium">Student Portal</span>
             </div>
           </div>

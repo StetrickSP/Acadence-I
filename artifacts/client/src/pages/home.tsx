@@ -4,13 +4,13 @@ import { GraduationCap, TrendingUp, AlertTriangle, BarChart3 } from 'lucide-reac
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 flex flex-col">
       <header className="px-6 py-5 flex items-center justify-between max-w-6xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
+          <div className="w-9 h-9 bg-teal-600 rounded-lg flex items-center justify-center">
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
-          <span className="text-white font-bold text-lg font-display">Grade Tracker</span>
+          <span className="text-white font-bold text-lg font-display">Acadence</span>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/sign-in">
@@ -19,7 +19,7 @@ export default function Home() {
             </Button>
           </Link>
           <Link href="/sign-up">
-            <Button className="bg-blue-500 hover:bg-blue-600 text-white">
+            <Button className="bg-teal-600 hover:bg-teal-700 text-white">
               Get Started
             </Button>
           </Link>
@@ -27,14 +27,14 @@ export default function Home() {
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center max-w-5xl mx-auto w-full">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-8">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-sm font-medium mb-8">
           <TrendingUp className="w-3.5 h-3.5" />
           University Course Performance Tracker
         </div>
 
         <h1 className="text-5xl md:text-6xl font-display font-bold text-white mb-6 leading-tight">
           Track, Predict &amp;<br />
-          <span className="text-blue-400">Improve</span> Grades
+          <span className="text-teal-400">Improve</span> Grades
         </h1>
 
         <p className="text-xl text-slate-400 max-w-2xl mb-10 leading-relaxed">
@@ -44,7 +44,7 @@ export default function Home() {
 
         <div className="flex flex-col sm:flex-row gap-4 mb-20">
           <Link href="/sign-up">
-            <Button size="lg" className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-6 text-base">
+            <Button size="lg" className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-6 text-base">
               Start Tracking Free
             </Button>
           </Link>
@@ -61,8 +61,8 @@ export default function Home() {
               icon: BarChart3,
               title: 'Analytics Dashboard',
               description: 'Real-time grade distribution, pass rates, and semester performance trends at a glance.',
-              color: 'text-blue-400',
-              bg: 'bg-blue-500/10 border-blue-500/20',
+              color: 'text-teal-400',
+              bg: 'bg-teal-500/10 border-teal-500/20',
             },
             {
               icon: AlertTriangle,
@@ -92,7 +92,7 @@ export default function Home() {
       </main>
 
       <footer className="px-6 py-6 text-center text-slate-500 text-sm">
-        © 2026 Grade Tracker. Academic performance made transparent.
+        © 2026 Acadence. Academic performance made transparent.
       </footer>
     </div>
   );

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Users, BookOpen, ClipboardList, FileText, TrendingUp, AlertTriangle, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, ClipboardList, FileText, TrendingUp, AlertTriangle, Menu, X, GraduationCap } from 'lucide-react';
 import { useClerk, useUser } from '@clerk/react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -40,10 +40,17 @@ export function AppShell({ children }: AppShellProps) {
       <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border hidden lg:block">
         <div className="flex flex-col h-full">
           <div className="px-6 py-5 border-b border-sidebar-border">
-            <h1 className="text-xl font-display font-bold text-sidebar-foreground tracking-tight">
-              Grade Tracker
-            </h1>
-            <p className="text-xs text-sidebar-foreground/60 mt-0.5 font-mono">Academic Control</p>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
+                <GraduationCap className="w-4.5 h-4.5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-display font-bold text-sidebar-foreground tracking-tight leading-none">
+                  Acadence
+                </h1>
+                <p className="text-xs text-sidebar-foreground/60 mt-0.5">Faculty workspace</p>
+              </div>
+            </div>
           </div>
 
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -101,7 +108,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 inset-x-0 z-40 bg-card border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="text-lg font-display font-bold text-foreground">Grade Tracker</h1>
+          <h1 className="text-lg font-display font-bold text-foreground">Acadence</h1>
           <Button
             variant="ghost"
             size="icon"
