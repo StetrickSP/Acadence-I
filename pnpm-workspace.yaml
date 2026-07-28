@@ -1,5 +1,7 @@
 packages:
-  - artifacts/*
+  - client
+  - server
+  - artifacts/mockup-sandbox
   - lib/*
   - lib/integrations/*
   - scripts
