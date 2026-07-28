@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
 
 @layer theme, base, clerk, components, utilities;
 @import 'tailwindcss';
@@ -319,4 +319,309 @@
 
 .cl-formFieldInput:focus::placeholder {
   opacity: 0.4;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ACADENCE CANVA DESIGN SYSTEM
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Fonts ───────────────────────────────────────────────────── */
+.heading-font {
+  font-family: 'Fraunces', Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+/* ── Layout: Sidebar ─────────────────────────────────────────── */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: 16rem; /* 256px */
+  background-color: #0f172a;
+  border-right: 1px solid rgba(51, 65, 85, 0.5);
+  overflow: hidden;
+  transition: width 0.25s ease, transform 0.25s ease;
+}
+
+/* Collapsed desktop sidebar */
+.sidebar.collapsed {
+  width: 4.25rem; /* 68px */
+}
+
+/* Mobile: hidden by default, slides in when .open */
+@media (max-width: 767px) {
+  .sidebar {
+    transform: translateX(-100%);
+    width: 16rem !important;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+/* Push main content to avoid sidebar overlap on desktop */
+@media (min-width: 768px) {
+  .sidebar ~ main,
+  .sidebar + main {
+    margin-left: 16rem;
+  }
+  .sidebar.collapsed ~ main,
+  .sidebar.collapsed + main {
+    margin-left: 4.25rem;
+  }
+}
+
+/* ── Nav items ───────────────────────────────────────────────── */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #94a3b8;
+  transition: background 0.15s ease, color 0.15s ease;
+  text-align: left;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+.nav-item:hover {
+  background: rgba(148, 163, 184, 0.08);
+  color: #e2e8f0;
+}
+
+.nav-item.active,
+.nav-item[aria-current="page"] {
+  background: rgba(20, 184, 166, 0.15);
+  color: #5eead4;
+}
+
+/* ── Cards ───────────────────────────────────────────────────── */
+.canva-card {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.canva-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Course cards ────────────────────────────────────────────── */
+.course-card {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  cursor: pointer;
+  min-height: 7.5rem;
+  position: relative;
+}
+
+.course-card:hover {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.09);
+  border-color: #0d9488;
+  transform: translateY(-1px);
+}
+
+.course-card:active {
+  transform: translateY(0);
+}
+
+/* ── Workspace tabs ──────────────────────────────────────────── */
+.workspace-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.workspace-tab:hover {
+  background: #f0fdf4;
+  border-color: #0d9488;
+  color: #0d9488;
+}
+
+.workspace-tab.active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #ffffff;
+}
+
+/* ── Score inputs ────────────────────────────────────────────── */
+.score-input {
+  width: 5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #f8fafc;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  text-align: center;
+}
+
+.score-input:focus {
+  outline: none;
+  border-color: #0f766e;
+  background: #ffffff;
+}
+
+.score-input:hover {
+  border-color: #94a3b8;
+}
+
+/* ── Attendance buttons ──────────────────────────────────────── */
+.attendance-button {
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1.5px solid #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.attendance-button:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #334155;
+}
+
+.attendance-button.selected-present {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.attendance-button.selected-absent {
+  background: #fef2f2;
+  border-color: #f87171;
+  color: #7f1d1d;
+}
+
+.attendance-button.selected-late {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #78350f;
+}
+
+.attendance-button.selected-excused {
+  background: #eff6ff;
+  border-color: #60a5fa;
+  color: #1e3a8a;
+}
+
+/* ── View entry animation ────────────────────────────────────── */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.view-in {
+  animation: fadeSlideIn 0.28s ease both;
+}
+
+/* ── Chart tabs ──────────────────────────────────────────────── */
+.chart-tab {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ACADENCE DARK MODE (body.dark-mode)
+   ═══════════════════════════════════════════════════════════════ */
+
+body.dark-mode {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+body.dark-mode .canva-card,
+body.dark-mode .bg-white {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+body.dark-mode .bg-slate-50 {
+  background-color: #1e293b !important;
+}
+
+body.dark-mode .text-slate-900,
+body.dark-mode .text-slate-800,
+body.dark-mode .text-slate-700 {
+  color: #f1f5f9 !important;
+}
+
+body.dark-mode .text-slate-600,
+body.dark-mode .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+body.dark-mode .border-slate-200 {
+  border-color: #334155 !important;
+}
+
+body.dark-mode .border-slate-100 {
+  border-color: #1e293b !important;
+}
+
+body.dark-mode thead.bg-slate-50,
+body.dark-mode .bg-slate-50 {
+  background-color: #1e293b !important;
+}
+
+body.dark-mode .score-input {
+  background: #0f172a;
+  color: #f1f5f9;
+  border-color: #334155;
+}
+
+body.dark-mode .score-input:focus {
+  background: #1e293b;
+  border-color: #0d9488;
+}
+
+body.dark-mode .workspace-tab {
+  color: #94a3b8;
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body.dark-mode .workspace-tab.active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #ffffff;
+}
+
+body.dark-mode .attendance-button {
+  background: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+body.dark-mode .attendance-button:hover {
+  background: #334155;
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
 }
