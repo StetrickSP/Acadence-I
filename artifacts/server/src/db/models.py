@@ -22,8 +22,8 @@ class StudentRow(Base):
     clerk_user_id = Column("clerk_user_id", Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
 
-    enrollments = relationship("EnrollmentRow", back_populates="student")
-    grades = relationship("GradeRow", back_populates="student")
+    enrollments = relationship("EnrollmentRow", back_populates="student", passive_deletes=True)
+    grades = relationship("GradeRow", back_populates="student", passive_deletes=True)
 
 
 class CourseRow(Base):
@@ -39,8 +39,8 @@ class CourseRow(Base):
     grading_scheme = Column("grading_scheme", Text, nullable=True, default="weighted")
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
 
-    enrollments = relationship("EnrollmentRow", back_populates="course")
-    assignments = relationship("AssignmentRow", back_populates="course")
+    enrollments = relationship("EnrollmentRow", back_populates="course", passive_deletes=True)
+    assignments = relationship("AssignmentRow", back_populates="course", cascade="all, delete-orphan")
 
 
 class EnrollmentRow(Base):
@@ -70,7 +70,7 @@ class AssignmentRow(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
 
     course = relationship("CourseRow", back_populates="assignments")
-    grades = relationship("GradeRow", back_populates="assignment")
+    grades = relationship("GradeRow", back_populates="assignment", cascade="all, delete-orphan")
 
 
 class GradeRow(Base):
