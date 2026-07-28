@@ -84,9 +84,12 @@ def list_students(
     search: Optional[str] = Query(None),
     major: Optional[str] = Query(None),
     year: Optional[int] = Query(None),
+    student_id_str: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     q = db.query(StudentRow)
+    if student_id_str:
+        q = q.filter(StudentRow.student_id == student_id_str)
     if search:
         q = q.filter(StudentRow.name.ilike(f"%{search}%"))
     if major:

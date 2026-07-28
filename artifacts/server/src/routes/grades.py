@@ -77,6 +77,35 @@ def create_grade(body: CreateGradeBody, db: Session = Depends(get_db)):
     return _fmt(row, asgn)
 
 
+@router.put("/grades/upsert")
+def upsert_grade(body: CreateGradeBody, db: Session = Depends(get_db)):
+    """Create or update a grade for a student+assignment pair."""
+    existing = db.query(GradeRow).filter(
+        GradeRow.student_id == body.student_id,
+        GradeRow.assignment_id == body.assignment_id,
+    ).first()
+    if existing:
+        existing.score = str(body.score)
+        if body.feedback is not None:
+            existing.feedback = body.feedback
+        db.commit()
+        db.refresh(existing)
+        asgn = db.query(AssignmentRow).filter(AssignmentRow.id == existing.assignment_id).first()
+        return _fmt(existing, asgn)
+    else:
+        row = GradeRow(
+            student_id=body.student_id,
+            assignment_id=body.assignment_id,
+            score=str(body.score),
+            feedback=body.feedback,
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        asgn = db.query(AssignmentRow).filter(AssignmentRow.id == body.assignment_id).first()
+        return _fmt(row, asgn)
+
+
 @router.put("/grades/{grade_id}")
 def update_grade(grade_id: int, body: UpdateGradeBody, db: Session = Depends(get_db)):
     g = db.query(GradeRow).filter(GradeRow.id == grade_id).first()

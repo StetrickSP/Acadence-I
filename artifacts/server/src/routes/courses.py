@@ -95,6 +95,70 @@ def create_course(body: CreateCourseBody, db: Session = Depends(get_db)):
     return _fmt_course(row, 0, None)
 
 
+@router.get("/courses/full")
+def get_courses_full(db: Session = Depends(get_db)):
+    """Return all courses with students, assignments, grades, and sessions in one shot."""
+    from src.db.models import SessionRow, AttendanceRecordRow
+
+    courses = db.query(CourseRow).order_by(CourseRow.name).all()
+    result = []
+    for c in courses:
+        enrolled = (
+            db.query(StudentRow)
+            .join(EnrollmentRow, EnrollmentRow.student_id == StudentRow.id)
+            .filter(EnrollmentRow.course_id == c.id)
+            .all()
+        )
+        enrolled_db_ids = {s.id for s in enrolled}
+        assignments = db.query(AssignmentRow).filter(AssignmentRow.course_id == c.id).order_by(AssignmentRow.created_at).all()
+        grades_q = (
+            db.query(GradeRow)
+            .join(AssignmentRow, GradeRow.assignment_id == AssignmentRow.id)
+            .filter(AssignmentRow.course_id == c.id)
+        )
+        if enrolled_db_ids:
+            grades_q = grades_q.filter(GradeRow.student_id.in_(enrolled_db_ids))
+        grades = grades_q.all()
+        sessions = db.query(SessionRow).filter(SessionRow.course_id == c.id).order_by(SessionRow.date, SessionRow.created_at).all()
+        sid_to_strid = {s.id: s.student_id for s in enrolled}
+
+        result.append({
+            "id": c.id,
+            "code": c.code,
+            "name": c.name,
+            "instructor": c.instructor,
+            "grading_scheme": c.grading_scheme or "weighted",
+            "students": [
+                {"id": s.id, "student_id": s.student_id, "name": s.name, "email": s.email}
+                for s in enrolled
+            ],
+            "assignments": [
+                {"id": a.id, "name": a.name, "weight": float(a.weight), "max_score": float(a.max_score)}
+                for a in assignments
+            ],
+            "grades": [
+                {"id": g.id, "student_db_id": g.student_id, "assignment_id": g.assignment_id, "score": float(g.score)}
+                for g in grades
+            ],
+            "sessions": [
+                {
+                    "id": s.id, "name": s.name, "date": s.date, "time_slot": s.time_slot or "",
+                    "attendance": [
+                        {
+                            "id": r.id,
+                            "student_db_id": r.student_id,
+                            "student_id_str": sid_to_strid.get(r.student_id),
+                            "status": r.status,
+                        }
+                        for r in db.query(AttendanceRecordRow).filter(AttendanceRecordRow.session_id == s.id).all()
+                    ],
+                }
+                for s in sessions
+            ],
+        })
+    return result
+
+
 @router.get("/courses/{course_id}")
 def get_course(course_id: int, db: Session = Depends(get_db)):
     c = db.query(CourseRow).filter(CourseRow.id == course_id).first()

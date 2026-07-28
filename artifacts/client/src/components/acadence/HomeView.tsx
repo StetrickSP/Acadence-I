@@ -21,7 +21,32 @@ function CourseIcon({ courseId }: { courseId: string }) {
 }
 
 export function HomeView({ onOpenCourse, profileName }: HomeViewProps) {
-  const { courseData, attendanceState, addCourse, deleteCourse, updateCourse } = useAcadence();
+  const { courseData, attendanceState, addCourse, deleteCourse, updateCourse, loading, error, refreshData } = useAcadence();
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320, gap: 16 }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #0f766e', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+        <p style={{ color: '#64748b', fontSize: 14 }}>Loading courses…</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320, gap: 12 }}>
+        <p style={{ color: '#dc2626', fontSize: 14, fontWeight: 600 }}>Failed to load courses</p>
+        <p style={{ color: '#64748b', fontSize: 13 }}>{error}</p>
+        <button
+          onClick={refreshData}
+          style={{ padding: '8px 20px', background: '#0f766e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
   const [managerOpen, setManagerOpen] = useState(false);
   const [newCourseId, setNewCourseId] = useState('');
   const [newCourseName, setNewCourseName] = useState('');
