@@ -141,6 +141,8 @@ def get_attendance(session_id: int, db: DBSession = Depends(get_db)):
 @router.post("/sessions/{session_id}/attendance")
 def upsert_attendance(session_id: int, body: UpsertAttendanceBody, db: DBSession = Depends(get_db)):
     """Create or update a single attendance record."""
+    if not db.query(SessionRow).filter(SessionRow.id == session_id).first():
+        raise HTTPException(status_code=404, detail="Session not found")
     existing = (
         db.query(AttendanceRecordRow)
         .filter(

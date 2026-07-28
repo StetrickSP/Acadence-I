@@ -3,6 +3,7 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from src.auth.clerk import _NoStudentException
 
@@ -26,6 +27,15 @@ app = FastAPI(title="University Grade Tracker API", version="2.0.0")
 async def no_student_handler(request: Request, exc: _NoStudentException):
     """Return a flat 403 body so the frontend hook can read body.isAdmin directly."""
     return JSONResponse(status_code=403, content={"isAdmin": True})
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    """Return 422 for FK / unique-constraint violations instead of a bare 500."""
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "Database integrity error — check foreign keys and unique constraints."},
+    )
 
 
 app.add_middleware(
