@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'wouter';
 import { LayoutDashboard, Users, BookOpen, ClipboardList, FileText, TrendingUp, AlertTriangle, Menu, X, GraduationCap } from 'lucide-react';
-import { useClerk, useUser } from '@clerk/react';
+import { useCustomAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -24,15 +24,16 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const [location] = useLocation();
-  const { signOut } = useClerk();
-  const { user } = useUser();
+  const { currentUser, logout } = useCustomAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const initials = user?.fullName
-    ?.split(' ')
-    .map((n) => n[0])
+  const displayName = currentUser?.name || currentUser?.email || 'User';
+  const initials = displayName
+    .split(' ')
+    .map((n: string) => n[0])
     .join('')
-    .toUpperCase() || user?.primaryEmailAddress?.emailAddress?.substring(0, 2).toUpperCase() || 'U';
+    .toUpperCase()
+    .slice(0, 2) || 'U';
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -87,7 +88,7 @@ export function AppShell({ children }: AppShellProps) {
                   </Avatar>
                   <div className="flex-1 text-left min-w-0">
                     <p className="text-sm font-medium text-sidebar-foreground truncate">
-                      {user?.fullName || user?.primaryEmailAddress?.emailAddress || 'User'}
+                      {displayName}
                     </p>
                     <p className="text-xs text-sidebar-foreground/60 truncate">Instructor</p>
                   </div>
@@ -96,7 +97,7 @@ export function AppShell({ children }: AppShellProps) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut({ redirectUrl: basePath || '/' })} data-testid="button-sign-out">
+                <DropdownMenuItem onClick={() => logout()} data-testid="button-sign-out">
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -146,7 +147,7 @@ export function AppShell({ children }: AppShellProps) {
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  signOut({ redirectUrl: basePath || '/' });
+                  logout();
                 }}
                 className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-sm font-medium text-destructive hover:bg-destructive/10"
               >

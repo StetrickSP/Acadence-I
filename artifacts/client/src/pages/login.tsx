@@ -72,6 +72,7 @@ export default function LoginPage() {
               <input
                 type="email"
                 autoComplete="email"
+                data-testid="input-email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
@@ -88,6 +89,7 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
+                  data-testid="input-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
@@ -113,6 +115,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
+              data-testid="button-signin"
               disabled={loading}
               className="w-full rounded-xl py-3 text-sm font-bold text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
               style={{ background: loading ? '#5eead4' : '#0f766e' }}
