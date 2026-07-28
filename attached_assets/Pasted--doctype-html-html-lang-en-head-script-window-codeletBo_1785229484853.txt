@@ -1,0 +1,1513 @@
+<!doctype html>
+<html lang="en"><head><script>window["__codeletBootstrap__"]=JSON.parse('{"A":"A","B":"20260728-05-94d8f20"}');</script><script src="/_sdk/a27874207e105461.telemetry_sdk.js" integrity="sha512-wgI5N9F7oA2h3vH+benMYIv4wGqTct4nKWakqgvfgRyBLmfYq8q/fi6gkfWKd2hMsyN+VQ/qOAOpxybwkcoxlA=="></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acadence Course Dashboard</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Fraunces:wght@600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    :root { --teal:#0f766e; --teal-soft:#ccfbf1; --ink:#0f172a; }
+    * { box-sizing: border-box; }
+    body { font-family:"DM Sans", sans-serif; color:var(--ink); }
+    .heading-font { font-family:"Fraunces", serif; }
+    .app-page { display:none; animation:pageIn .28s ease both; }
+    .app-page.active { display:block; }
+    .nav-item { transition:background .16s ease,color .16s ease,transform .16s ease; }
+    .nav-item:hover:not(.active) { background:#f1f5f9; transform:translateX(2px); }
+    .nav-item.active { background:var(--teal-soft); color:var(--teal); font-weight:600; }
+    .course-card {
+      position:relative; cursor:pointer; outline:none;
+      border:1px solid #e2e8f0;
+      transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+    }
+    .course-card::after {
+      content:"→"; position:absolute; right:18px; bottom:17px;
+      width:30px; height:30px; border-radius:999px; display:grid; place-items:center;
+      background:#f0fdfa; color:#0f766e; font-weight:700;
+      transition:transform .2s ease,background .2s ease,color .2s ease;
+    }
+    .course-card:hover {
+      transform:translateY(-5px); border-color:#5eead4;
+      box-shadow:0 18px 40px -20px rgba(15,118,110,.48);
+    }
+    .course-card:hover::after { transform:translateX(3px); background:#0f766e; color:white; }
+    .course-card:focus-visible { border-color:#0f766e; box-shadow:0 0 0 4px rgba(20,184,166,.22),0 18px 40px -20px rgba(15,118,110,.48); }
+    .course-card.is-pressed { transform:translateY(-1px) scale(.985); }
+    .course-card img { transition:transform .45s ease; }
+    .course-card:hover img { transform:scale(1.045); }
+    .workspace-course { display:none; }
+    .workspace-course.active { display:block; }
+    .course-panel { display:none; }
+    .course-panel.active { display:block; animation:pageIn .22s ease both; }
+    .course-tab {
+      transition:background .16s ease,color .16s ease,box-shadow .16s ease;
+    }
+    .course-tab.active { background:#0f766e; color:#fff; box-shadow:0 7px 18px -9px rgba(15,118,110,.8); }
+    .viz-nav-card {
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .viz-nav-card:hover {
+      background-color: #f8fafc;
+      transform: translateY(-1px);
+    }
+    .viz-nav-card.active {
+      border-color: #0f766e;
+      border-width: 2px;
+      box-shadow: 0 4px 12px -2px rgba(15,118,110,0.12);
+      background-color: #f0fdfa;
+    }
+    .course-tab:focus-visible, button:focus-visible {
+      outline:3px solid rgba(20,184,166,.35); outline-offset:2px;
+    }
+    .meter-track { background:#e2e8f0; }
+    .meter-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,#14b8a6,#0f766e); }
+    .mobile-sidebar { height:calc(100 * min(var(--vh, 1vh), 1vh)); }
+    @keyframes pageIn { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
+    @media (prefers-reduced-motion:reduce) {
+      *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; }
+    }
+    @media (max-width:767px) {
+      .sidebar { position:fixed; left:-270px; top:0; z-index:60; transition:left .25s ease; }
+      .sidebar.open { left:0; }
+      .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.4); z-index:50; }
+      .sidebar-overlay.open { display:block; }
+    }
+  </style>
+  <script src="/_sdk/935a53bc2e11fb8d.data_sdk.js" type="text/javascript" integrity="sha512-qr2oyPnEys1WebcOABaRh6hG77r5PWpqeWW6JTKbRJqly/INsfBi31CVNlTmHqjgeLpkVmmHZJUdxSx/32tOFQ=="></script>
+  <script src="/_sdk/6030e540d4419216.resizing_sdk.js" type="text/javascript" integrity="sha512-b5KWzyoXsbWP4smq4sftIi6Kts4YVBpBsz0BwCViwbBJkK64a3/Z6ZMdWA+qnplNcXw4mhZeqvQi3mOosiRJdA=="></script>
+ </head>
+ <body data-template-id="__page-root" class="w-full min-h-screen" style="background: rgb(248, 250, 252);">
+  <div class="w-full min-h-screen flex">
+   <button id="mobile-toggle" type="button" class="md:hidden fixed top-4 left-4 z-40 bg-white border border-slate-200 rounded-xl shadow-lg p-2.5" aria-label="Open navigation"> <i data-lucide="menu" class="w-5 h-5"></i> </button>
+   <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
+   <aside class="sidebar mobile-sidebar md:min-h-screen w-60 bg-white border-r border-slate-200 flex flex-col md:sticky md:top-0 flex-shrink-0 overflow-y-auto">
+    <header class="p-5 border-b border-slate-100">
+     <div class="flex justify-between items-start">
+      <div>
+       <h1 data-template-id="app-title" class="canva-text heading-font" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 30px;">Acadence</h1><span data-template-id="semester-badge" class="canva-tag text-xs px-2 py-1 rounded-full inline-block mt-2" style="background: rgb(204, 251, 241); color: rgb(15, 118, 110); font-weight: 500; font-style: normal; font-size: 15px;">Semester 2 · 2025–2026</span>
+      </div><button id="mobile-close" type="button" class="md:hidden p-1.5 rounded-lg hover:bg-slate-100" aria-label="Close navigation"> <i data-lucide="x" class="w-5 h-5"></i> </button>
+     </div>
+    </header>
+    <nav class="flex-1 p-3 space-y-1" aria-label="Main navigation">
+     <button class="nav-item active w-full text-left px-4 py-2.5 rounded-lg text-sm flex items-center gap-3" data-page="dashboard"><i data-lucide="layout-dashboard" class="w-4 h-4"></i><span data-template-id="nav-dashboard" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 15px;">Dashboard</span></button> <button class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-sm flex items-center gap-3" data-page="courses"><i data-lucide="book-open" class="w-4 h-4"></i><span data-template-id="nav-courses" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 15px;">Courses</span></button> <button class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-sm flex items-center gap-3" data-page="grades"><i data-lucide="clipboard-list" class="w-4 h-4"></i><span data-template-id="nav-grades" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 15px;">Grades</span></button> <button class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-sm flex items-center gap-3" data-page="visualizations"><i data-lucide="bar-chart-3" class="w-4 h-4"></i><span data-template-id="nav-visualizations" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 15px;">Visualizations</span></button> <button class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-sm flex items-center gap-3" data-page="predictions"><i data-lucide="sparkles" class="w-4 h-4"></i><span data-template-id="nav-predictions" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 15px;">Predictions</span></button> <button class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-sm flex items-center gap-3" data-page="export"><i data-lucide="download" class="w-4 h-4"></i><span data-template-id="nav-export" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 15px;">Export Report</span></button> <button class="nav-item w-full text-left px-4 py-2.5 rounded-lg text-sm flex items-center gap-3" data-page="profile"><i data-lucide="user" class="w-4 h-4"></i><span data-template-id="nav-profile" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 15px;">Profile</span></button>
+    </nav>
+    <div class="flex-shrink-0 border-t border-slate-100 p-3">
+     <button id="mini-profile-btn" type="button" class="w-full text-left p-3 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-3 focus:outline-none focus:ring-2 focus:ring-teal-500/50">
+      <div id="mini-avatar" class="w-10 h-10 rounded-full bg-teal-100 text-teal-700 font-bold flex items-center justify-center flex-shrink-0 text-sm">
+       VA
+      </div>
+      <div class="flex-1 min-w-0">
+       <p id="mini-name" class="text-sm font-semibold text-slate-800 truncate">Nguyen Van A</p>
+       <p id="mini-role" class="text-xs text-slate-500 truncate">Student</p>
+      </div><i data-lucide="chevron-up" class="w-4 h-4 text-slate-400 flex-shrink-0"></i> </button>
+     <div id="mini-profile-menu" class="hidden absolute bottom-20 left-3 right-3 bg-slate-900 rounded-xl shadow-xl border border-slate-700/50 p-4 z-50">
+      <div class="mb-4 pb-4 border-b border-slate-700">
+       <p id="mini-popup-name" class="text-sm font-semibold text-white mb-0.5">Nguyen Van A</p>
+       <p id="mini-popup-email" class="text-xs text-slate-400">nguyen.van.a@university.edu</p>
+      </div><button id="signout-btn" type="button" class="w-full text-left flex items-center gap-3 px-2 py-2 text-sm font-medium text-rose-400 hover:bg-slate-800 rounded-lg transition-colors"> <i data-lucide="log-out" class="w-4 h-4"></i> <span>Sign out</span> </button>
+     </div>
+    </div>
+   </aside>
+   <main class="flex-1 min-w-0 w-full p-5 pt-20 md:pt-8 md:p-8">
+    <div class="max-w-6xl mx-auto">
+     <div id="navigation-status" class="sr-only" aria-live="polite"></div>
+     <section id="page-dashboard" class="app-page active">
+      <div class="relative rounded-2xl overflow-hidden mb-7 min-h-[220px]">
+       <img data-template-id="hero-image" class="canva-image absolute inset-0 w-full h-full object-cover" loading="lazy" src="https://images.pexels.com/photos/5940844/pexels-photo-5940844.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1280" alt="Group of diverse classmates sitting at table with laptop and sharing opinions during studies">
+       <div class="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-900/45 to-transparent"></div>
+       <div class="relative p-7 md:p-10 max-w-xl">
+        <p data-template-id="hero-kicker" class="canva-text uppercase tracking-[.2em] mb-2" style="color: rgb(248, 250, 252); font-weight: 700; font-style: normal; font-size: 13px;">Welcome back</p>
+        <h2 data-template-id="hero-title" class="canva-text heading-font mb-3" style="color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 36px;">Your Academic Dashboard</h2>
+        <p data-template-id="hero-description" class="canva-text max-w-md" style="color: rgb(226, 232, 240); font-weight: 400; font-style: normal; font-size: 15px;">Track your performance across all courses at a glance.</p>
+       </div>
+      </div>
+      <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+       <article data-template-id="stat-courses" class="canva-card rounded-xl p-5 shadow-sm" style="background: rgb(255, 255, 255);">
+        <div class="flex items-center gap-2 text-slate-500 text-sm mb-2"><i data-lucide="book-open" class="w-4 h-4"></i>Courses
+        </div>
+        <p data-template-id="stat-courses-val" class="canva-text" style="color: rgb(15, 23, 42); font-weight: 700; font-size: 28px;"></p>
+       </article>
+       <article data-template-id="stat-gpa" class="canva-card rounded-xl p-5 shadow-sm" style="background: rgb(255, 255, 255);">
+        <div class="flex items-center gap-2 text-slate-500 text-sm mb-2"><i data-lucide="trending-up" class="w-4 h-4"></i>Avg GPA
+        </div>
+        <p data-template-id="stat-gpa-val" class="canva-text" style="color: rgb(15, 23, 42); font-weight: 700; font-size: 28px;"></p>
+       </article>
+       <article data-template-id="stat-risk" class="canva-card rounded-xl p-5 shadow-sm" style="background: rgb(255, 255, 255);">
+        <div class="flex items-center gap-2 text-slate-500 text-sm mb-2"><i data-lucide="triangle-alert" class="w-4 h-4"></i>At-Risk
+        </div>
+        <p data-template-id="stat-risk-val" class="canva-text" style="color: rgb(220, 38, 38); font-weight: 700; font-size: 28px;"></p>
+       </article>
+      </div><!-- Courses List directly embedded in the Main Dashboard for visualization as requested -->
+      <header class="mb-6">
+       <h2 data-template-id="courses-title" class="canva-text heading-font mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 25px;">Your Courses</h2>
+       <p data-template-id="courses-subtitle" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Select a course card to open its grade book, Attendance Report, and AI Prediction.</p>
+      </header>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 max-h-96 overflow-y-auto pr-2">
+       <article data-template-id="course-1" class="canva-card course-card rounded-2xl overflow-hidden bg-white" tabindex="0" role="button" aria-label="Open CS301 Algorithms course" data-course="cs301" style="background: rgb(255, 255, 255);">
+        <div class="overflow-hidden"><img data-template-id="course-1-img" class="canva-image w-full h-36 object-cover" loading="lazy" src="https://images.pexels.com/photos/27427258/pexels-photo-27427258.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=800" alt="Vibrant and engaging code displayed on a computer screen, showcasing programming concepts.">
+        </div>
+        <div class="p-5 pb-4">
+         <span data-template-id="course-1-badge" class="canva-tag inline-flex px-2 py-1 rounded-md text-xs" style="background: rgb(204, 251, 241); color: rgb(15, 118, 110); font-weight: 700; font-style: normal; font-size: 15px;">CS301</span>
+         <h3 data-template-id="course-1-name" class="canva-text mt-3 mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 18px;">CS301 — Algorithms</h3>
+         <p data-template-id="course-1-info" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Weighted grading · Dr. Nguyen</p>
+        </div>
+        <footer class="px-5 py-4 pr-16 border-t border-slate-100"><span data-template-id="course-1-enrolled" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">42 enrolled</span>
+        </footer>
+       </article>
+       <article data-template-id="course-2" class="canva-card course-card rounded-2xl overflow-hidden bg-white" tabindex="0" role="button" aria-label="Open DS201 Data Analysis course" data-course="ds201" style="background: rgb(255, 255, 255);">
+        <div class="overflow-hidden"><img data-template-id="course-2-img" class="canva-image w-full h-36 object-cover" loading="lazy" src="https://images.pexels.com/photos/7947999/pexels-photo-7947999.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=800" alt="Focused business analysis with charts and graphs on a laptop in a modern office setting.">
+        </div>
+        <div class="p-5 pb-4">
+         <span data-template-id="course-2-badge" class="canva-tag inline-flex px-2 py-1 rounded-md text-xs" style="background: rgb(219, 234, 254); color: rgb(29, 78, 216); font-weight: 700; font-style: normal; font-size: 15px;">DS201</span>
+         <h3 data-template-id="course-2-name" class="canva-text mt-3 mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 18px;">DS201 — Data Analysis</h3>
+         <p data-template-id="course-2-info" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Curved grading · Prof. Tran</p>
+        </div>
+        <footer class="px-5 py-4 pr-16 border-t border-slate-100"><span data-template-id="course-2-enrolled" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">38 enrolled</span>
+        </footer>
+       </article>
+       <article data-template-id="course-3" class="canva-card course-card rounded-2xl overflow-hidden bg-white" tabindex="0" role="button" aria-label="Open SE401 Software Engineering course" data-course="se401" style="background: rgb(255, 255, 255);">
+        <div class="overflow-hidden"><img data-template-id="course-3-img" class="canva-image w-full h-36 object-cover" loading="lazy" src="https://images.pexels.com/photos/3912478/pexels-photo-3912478.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=800" alt="Two business professionals brainstorming and planning software development with a whiteboard in an office.">
+        </div>
+        <div class="p-5 pb-4">
+         <span data-template-id="course-3-badge" class="canva-tag inline-flex px-2 py-1 rounded-md text-xs" style="background: rgb(237, 233, 254); color: rgb(109, 40, 217); font-weight: 700; font-style: normal; font-size: 15px;">SE401</span>
+         <h3 data-template-id="course-3-name" class="canva-text mt-3 mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 18px;">SE401 — Software Engineering</h3>
+         <p data-template-id="course-3-info" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Pass/Fail · Dr. Le</p>
+        </div>
+        <footer class="px-5 py-4 pr-16 border-t border-slate-100"><span data-template-id="course-3-enrolled" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">35 enrolled</span>
+        </footer>
+       </article>
+      </div>
+     </section>
+     <section id="page-courses" class="app-page">
+      <header class="mb-6">
+       <h2 data-template-id="courses-title" class="canva-text heading-font mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 25px;">Your Courses</h2>
+       <p data-template-id="courses-subtitle" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Select a course card to open its grade book, Attendance Report, and AI Prediction.</p>
+      </header>
+      <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
+       <article data-template-id="course-1" class="canva-card course-card rounded-2xl overflow-hidden bg-white" tabindex="0" role="button" aria-label="Open CS301 Algorithms course" data-course="cs301" style="background: rgb(255, 255, 255);">
+        <div class="overflow-hidden"><img data-template-id="course-1-img" class="canva-image w-full h-36 object-cover" loading="lazy" src="https://images.pexels.com/photos/27427258/pexels-photo-27427258.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=800" alt="Vibrant and engaging code displayed on a computer screen, showcasing programming concepts.">
+        </div>
+        <div class="p-5 pb-4">
+         <span data-template-id="course-1-badge" class="canva-tag inline-flex px-2 py-1 rounded-md text-xs" style="background: rgb(204, 251, 241); color: rgb(15, 118, 110); font-weight: 700; font-style: normal; font-size: 15px;">CS301</span>
+         <h3 data-template-id="course-1-name" class="canva-text mt-3 mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 18px;">CS301 — Algorithms</h3>
+         <p data-template-id="course-1-info" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Weighted grading · Dr. Nguyen</p>
+        </div>
+        <footer class="px-5 py-4 pr-16 border-t border-slate-100"><span data-template-id="course-1-enrolled" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">42 enrolled</span>
+        </footer>
+       </article>
+       <article data-template-id="course-2" class="canva-card course-card rounded-2xl overflow-hidden bg-white" tabindex="0" role="button" aria-label="Open DS201 Data Analysis course" data-course="ds201" style="background: rgb(255, 255, 255);">
+        <div class="overflow-hidden"><img data-template-id="course-2-img" class="canva-image w-full h-36 object-cover" loading="lazy" src="https://images.pexels.com/photos/7947999/pexels-photo-7947999.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=800" alt="Focused business analysis with charts and graphs on a laptop in a modern office setting.">
+        </div>
+        <div class="p-5 pb-4">
+         <span data-template-id="course-2-badge" class="canva-tag inline-flex px-2 py-1 rounded-md text-xs" style="background: rgb(219, 234, 254); color: rgb(29, 78, 216); font-weight: 700; font-style: normal; font-size: 15px;">DS201</span>
+         <h3 data-template-id="course-2-name" class="canva-text mt-3 mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 18px;">DS201 — Data Analysis</h3>
+         <p data-template-id="course-2-info" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Curved grading · Prof. Tran</p>
+        </div>
+        <footer class="px-5 py-4 pr-16 border-t border-slate-100"><span data-template-id="course-2-enrolled" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">38 enrolled</span>
+        </footer>
+       </article>
+       <article data-template-id="course-3" class="canva-card course-card rounded-2xl overflow-hidden bg-white" tabindex="0" role="button" aria-label="Open SE401 Software Engineering course" data-course="se401" style="background: rgb(255, 255, 255);">
+        <div class="overflow-hidden"><img data-template-id="course-3-img" class="canva-image w-full h-36 object-cover" loading="lazy" src="https://images.pexels.com/photos/3912478/pexels-photo-3912478.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=800" alt="Two business professionals brainstorming and planning software development with a whiteboard in an office.">
+        </div>
+        <div class="p-5 pb-4">
+         <span data-template-id="course-3-badge" class="canva-tag inline-flex px-2 py-1 rounded-md text-xs" style="background: rgb(237, 233, 254); color: rgb(109, 40, 217); font-weight: 700; font-style: normal; font-size: 15px;">SE401</span>
+         <h3 data-template-id="course-3-name" class="canva-text mt-3 mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 18px;">SE401 — Software Engineering</h3>
+         <p data-template-id="course-3-info" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Pass/Fail · Dr. Le</p>
+        </div>
+        <footer class="px-5 py-4 pr-16 border-t border-slate-100"><span data-template-id="course-3-enrolled" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">35 enrolled</span>
+        </footer>
+       </article>
+      </div>
+     </section>
+     <section id="page-course-detail" class="app-page">
+      <button id="back-to-courses" type="button" data-template-id="back-to-courses" class="canva-button inline-flex items-center gap-2 px-3 py-2 rounded-lg mb-5" style="font-weight: 400; font-style: normal; font-size: 15px;">Back to Courses</button>
+      <div data-template-id="course-workspace-header" class="canva-banner rounded-2xl p-6 md:p-7 mb-5" style="background: linear-gradient(135deg, rgb(15, 118, 110), rgb(17, 94, 89));">
+       <div class="workspace-course active" data-workspace-course="cs301">
+        <span data-template-id="detail-cs301-badge" class="canva-tag inline-flex px-2 py-1 rounded text-xs mb-3" style="background: rgb(204, 251, 241); color: rgb(15, 118, 110); font-weight: 700; font-style: normal; font-size: 15px;">CS301</span>
+        <h2 data-template-id="detail-cs301-title" class="canva-text heading-font mb-1" style="color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 30px;">Algorithms</h2>
+        <p data-template-id="detail-cs301-subtitle" class="canva-text" style="color: rgb(204, 251, 241); font-weight: 400; font-style: normal; font-size: 15px;">42 enrolled · Weighted grading · Dr. Nguyen</p>
+       </div>
+       <div class="workspace-course" data-workspace-course="ds201">
+        <span data-template-id="detail-ds201-badge" class="canva-tag inline-flex px-2 py-1 rounded text-xs mb-3" style="background: rgb(219, 234, 254); color: rgb(29, 78, 216); font-weight: 700; font-style: normal; font-size: 15px;">DS201</span>
+        <h2 data-template-id="detail-ds201-title" class="canva-text heading-font mb-1" style="color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 30px;">Data Analysis</h2>
+        <p data-template-id="detail-ds201-subtitle" class="canva-text" style="color: rgb(204, 251, 241); font-weight: 400; font-style: normal; font-size: 15px;">38 enrolled · Curved grading · Prof. Tran</p>
+       </div>
+       <div class="workspace-course" data-workspace-course="se401">
+        <span data-template-id="detail-se401-badge" class="canva-tag inline-flex px-2 py-1 rounded text-xs mb-3" style="background: rgb(237, 233, 254); color: rgb(109, 40, 217); font-weight: 700; font-style: normal; font-size: 15px;">SE401</span>
+        <h2 data-template-id="detail-se401-title" class="canva-text heading-font mb-1" style="color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 30px;">Software Engineering</h2>
+        <p data-template-id="detail-se401-subtitle" class="canva-text" style="color: rgb(204, 251, 241); font-weight: 400; font-style: normal; font-size: 15px;">35 enrolled · Pass/Fail · Dr. Le</p>
+       </div>
+      </div>
+      <div class="bg-slate-100 p-1.5 rounded-xl flex flex-col sm:flex-row gap-1.5 mb-6" role="tablist" aria-label="Course workspace sections">
+       <button id="tab-attendance" type="button" role="tab" aria-selected="true" aria-controls="panel-attendance" data-panel="attendance" class="course-tab active flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold flex justify-center items-center gap-2"><i data-lucide="calendar-check" class="w-4 h-4"></i><span data-template-id="tab-attendance-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 15px;">Attendance</span></button> <button id="tab-course-grades" type="button" role="tab" aria-selected="false" aria-controls="panel-course-grades" data-panel="course-grades" class="course-tab flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold flex justify-center items-center gap-2"><i data-lucide="notebook-tabs" class="w-4 h-4"></i><span data-template-id="tab-grades-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 15px;">Grades</span></button> <button id="tab-ai-prediction" type="button" role="tab" aria-selected="false" aria-controls="panel-ai-prediction" data-panel="ai-prediction" class="course-tab flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold flex justify-center items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4"></i><span data-template-id="tab-ai-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 15px;">AI Prediction</span></button>
+      </div>
+      <div id="panel-attendance" class="course-panel active" role="tabpanel" aria-labelledby="tab-attendance"><!-- CS301 Attendance -->
+       <div class="workspace-course active" data-workspace-course="cs301">
+        <article data-template-id="cs301-attendance-card-root" class="canva-card rounded-2xl p-6 bg-white border border-slate-200 shadow-sm max-w-2xl mx-auto flex flex-col h-[520px]" style="background: rgb(255, 255, 255);"><!-- Student Profile Header -->
+         <div class="flex items-center gap-4 mb-6 flex-shrink-0">
+          <div data-template-id="cs301-student-avatar" class="w-12 h-14 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-lg" style="background: rgb(204, 251, 241); color: rgb(15, 118, 110); font-weight: 700;">
+           VA
+          </div>
+          <div>
+           <h4 data-template-id="cs301-student-name" class="canva-text font-bold text-slate-800 text-lg" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 15px;">Nguyen Van A</h4>
+           <p data-template-id="cs301-student-id" class="canva-text text-sm text-slate-400" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">STU001</p>
+          </div>
+         </div><!-- Stats Row -->
+         <div class="grid grid-cols-3 gap-3 mb-6 flex-shrink-0">
+          <div data-template-id="cs301-stat-attended-card" class="rounded-2xl p-4 border border-emerald-100 bg-emerald-50/40 text-center" style="background: rgb(240, 253, 244);"><span data-template-id="cs301-stat-attended-num" class="canva-text block text-2xl font-bold text-emerald-700" style="color: rgb(21, 128, 61); font-weight: 700; font-style: normal; font-size: 24px;">22</span> <span data-template-id="cs301-stat-attended-lbl" class="canva-text text-xs font-semibold text-emerald-600 block mt-1" style="color: rgb(22, 163, 74); font-weight: 600; font-style: normal; font-size: 15px;">Attended</span>
+          </div>
+          <div data-template-id="cs301-stat-missed-card" class="rounded-2xl p-4 border border-rose-100 bg-rose-50/40 text-center" style="background: rgb(255, 241, 242);"><span data-template-id="cs301-stat-missed-num" class="canva-text block text-2xl font-bold text-rose-700" style="color: rgb(190, 18, 60); font-weight: 700; font-style: normal; font-size: 24px;">2</span> <span data-template-id="cs301-stat-missed-lbl" class="canva-text text-xs font-semibold text-rose-600 block mt-1" style="color: rgb(225, 29, 72); font-weight: 600; font-style: normal; font-size: 15px;">Missed</span>
+          </div>
+          <div data-template-id="cs301-stat-rate-card" class="rounded-2xl p-4 border border-amber-100 bg-amber-50/40 text-center" style="background: rgb(255, 251, 235);"><span data-template-id="cs301-stat-rate-num" class="canva-text block text-2xl font-bold text-amber-700" style="color: rgb(180, 83, 9); font-weight: 700; font-style: normal; font-size: 24px;">92%</span> <span data-template-id="cs301-stat-rate-lbl" class="canva-text text-xs font-semibold text-amber-600 block mt-1" style="color: rgb(217, 119, 6); font-weight: 600; font-style: normal; font-size: 15px;">Rate</span>
+          </div>
+         </div><!-- Section Divider / Header -->
+         <h4 data-template-id="cs301-history-title" class="canva-text text-xs font-bold tracking-wider text-slate-500 mb-4 uppercase flex-shrink-0" style="color: rgb(100, 116, 139); font-weight: 700; font-style: normal; font-size: 12px;">SESSION ATTENDANCE HISTORY</h4><!-- History List Scrollable -->
+         <div class="flex-1 overflow-y-auto pr-1 space-y-3 min-h-0 scrollbar-thin">
+          <div data-template-id="cs301-hist-row-1" class="canva-card rounded-2xl p-4 border border-slate-100 bg-slate-50/30 flex items-center justify-between" style="background: rgb(248, 250, 251);">
+           <div>
+            <h5 data-template-id="cs301-hist-name-1" class="canva-text text-sm font-bold text-slate-700" style="color: rgb(51, 65, 85); font-weight: 700; font-style: normal; font-size: 12px;">Lecture 1: Intro to Complexities</h5><span data-template-id="cs301-hist-date-1" class="canva-text text-xs text-slate-400" style="color: rgb(148, 163, 184); font-weight: 400; font-style: normal; font-size: 15px;">2026-07-13</span>
+           </div><span data-template-id="cs301-hist-status-1" class="canva-tag px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full" style="background: rgb(209, 250, 229); color: rgb(6, 95, 70); font-weight: 700; font-style: normal; font-size: 15px;">Present</span>
+          </div>
+          <div data-template-id="cs301-hist-row-2" class="canva-card rounded-2xl p-4 border border-slate-100 bg-slate-50/30 flex items-center justify-between" style="background: rgb(248, 250, 251);">
+           <div>
+            <h5 data-template-id="cs301-hist-name-2" class="canva-text text-sm font-bold text-slate-700" style="color: rgb(51, 65, 85); font-weight: 700; font-style: normal; font-size: 12px;">Lecture 2: Sorting and Searching</h5><span data-template-id="cs301-hist-date-2" class="canva-text text-xs text-slate-400" style="color: rgb(148, 163, 184); font-weight: 400; font-style: normal; font-size: 15px;">2026-07-20</span>
+           </div><span data-template-id="cs301-hist-status-2" class="canva-tag px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full" style="background: rgb(209, 250, 229); color: rgb(6, 95, 70); font-weight: 700; font-style: normal; font-size: 15px;">Present</span>
+          </div>
+         </div>
+        </article>
+       </div><!-- DS201 Attendance -->
+       <div class="workspace-course" data-workspace-course="ds201">
+        <article data-template-id="ds201-attendance-card-root" class="canva-card rounded-2xl p-6 bg-white border border-slate-200 shadow-sm max-w-2xl mx-auto flex flex-col h-[520px]" style="background: rgb(255, 255, 255);"><!-- Student Profile Header -->
+         <div class="flex items-center gap-4 mb-6 flex-shrink-0">
+          <div data-template-id="ds201-student-avatar" class="w-12 h-14 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-lg" style="background: rgb(204, 251, 241); color: rgb(15, 118, 110); font-weight: 700;">
+           VA
+          </div>
+          <div>
+           <h4 data-template-id="ds201-student-name" class="canva-text font-bold text-slate-800 text-lg" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 15px;">Nguyen Van A</h4>
+           <p data-template-id="ds201-student-id" class="canva-text text-sm text-slate-400" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">STU001</p>
+          </div>
+         </div><!-- Stats Row -->
+         <div class="grid grid-cols-3 gap-3 mb-6 flex-shrink-0">
+          <div data-template-id="ds201-stat-attended-card" class="rounded-2xl p-4 border border-emerald-100 bg-emerald-50/40 text-center" style="background: rgb(240, 253, 244);"><span data-template-id="ds201-stat-attended-num" class="canva-text block text-2xl font-bold text-emerald-700" style="color: rgb(21, 128, 61); font-weight: 700; font-style: normal; font-size: 24px;">19</span> <span data-template-id="ds201-stat-attended-lbl" class="canva-text text-xs font-semibold text-emerald-600 block mt-1" style="color: rgb(22, 163, 74); font-weight: 600; font-style: normal; font-size: 15px;">Attended</span>
+          </div>
+          <div data-template-id="ds201-stat-missed-card" class="rounded-2xl p-4 border border-rose-100 bg-rose-50/40 text-center" style="background: rgb(255, 241, 242);"><span data-template-id="ds201-stat-missed-num" class="canva-text block text-2xl font-bold text-rose-700" style="color: rgb(190, 18, 60); font-weight: 700; font-style: normal; font-size: 24px;">3</span> <span data-template-id="ds201-stat-missed-lbl" class="canva-text text-xs font-semibold text-rose-600 block mt-1" style="color: rgb(225, 29, 72); font-weight: 600; font-style: normal; font-size: 15px;">Missed</span>
+          </div>
+          <div data-template-id="ds201-stat-rate-card" class="rounded-2xl p-4 border border-amber-100 bg-amber-50/40 text-center" style="background: rgb(255, 251, 235);"><span data-template-id="ds201-stat-rate-num" class="canva-text block text-2xl font-bold text-amber-700" style="color: rgb(180, 83, 9); font-weight: 700; font-style: normal; font-size: 24px;">86%</span> <span data-template-id="ds201-stat-rate-lbl" class="canva-text text-xs font-semibold text-amber-600 block mt-1" style="color: rgb(217, 119, 6); font-weight: 600; font-style: normal; font-size: 15px;">Rate</span>
+          </div>
+         </div><!-- Section Divider / Header -->
+         <h4 data-template-id="ds201-history-title" class="canva-text text-xs font-bold tracking-wider text-slate-500 mb-4 uppercase flex-shrink-0" style="color: rgb(100, 116, 139); font-weight: 700; font-style: normal; font-size: 12px;">SESSION ATTENDANCE HISTORY</h4><!-- History List Scrollable -->
+         <div class="flex-1 overflow-y-auto pr-1 space-y-3 min-h-0 scrollbar-thin">
+          <div data-template-id="ds201-hist-row-1" class="canva-card rounded-2xl p-4 border border-slate-100 bg-slate-50/30 flex items-center justify-between" style="background: rgb(248, 250, 251);">
+           <div>
+            <h5 data-template-id="ds201-hist-name-1" class="canva-text text-sm font-bold text-slate-700" style="color: rgb(51, 65, 85); font-weight: 700; font-style: normal; font-size: 12px;">Lecture 1: Regression Models</h5><span data-template-id="ds201-hist-date-1" class="canva-text text-xs text-slate-400" style="color: rgb(148, 163, 184); font-weight: 400; font-style: normal; font-size: 15px;">2026-07-14</span>
+           </div><span data-template-id="ds201-hist-status-1" class="canva-tag px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full" style="background: rgb(209, 250, 229); color: rgb(6, 95, 70); font-weight: 700; font-style: normal; font-size: 15px;">Present</span>
+          </div>
+          <div data-template-id="ds201-hist-row-2" class="canva-card rounded-2xl p-4 border border-slate-100 bg-slate-50/30 flex items-center justify-between" style="background: rgb(248, 250, 251);">
+           <div>
+            <h5 data-template-id="ds201-hist-name-2" class="canva-text text-sm font-bold text-slate-700" style="color: rgb(51, 65, 85); font-weight: 700; font-style: normal; font-size: 12px;">Lecture 2: Charting and Dashboards</h5><span data-template-id="ds201-hist-date-2" class="canva-text text-xs text-slate-400" style="color: rgb(148, 163, 184); font-weight: 400; font-style: normal; font-size: 15px;">2026-07-21</span>
+           </div><span data-template-id="ds201-hist-status-2" class="canva-tag px-3 py-1 bg-rose-100 text-rose-700 text-xs font-bold rounded-full" style="background: rgb(255, 228, 230); color: rgb(159, 18, 57); font-weight: 700; font-style: normal; font-size: 15px;">Absent</span>
+          </div>
+         </div>
+        </article>
+       </div><!-- SE401 Attendance -->
+       <div class="workspace-course" data-workspace-course="se401">
+        <article data-template-id="se401-attendance-card-root" class="canva-card rounded-2xl p-6 bg-white border border-slate-200 shadow-sm max-w-2xl mx-auto flex flex-col h-[520px]" style="background: rgb(255, 255, 255);"><!-- Student Profile Header -->
+         <div class="flex items-center gap-4 mb-6 flex-shrink-0">
+          <div data-template-id="se401-student-avatar" class="w-12 h-14 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-lg" style="background: rgb(204, 251, 241); color: rgb(15, 118, 110); font-weight: 700;">
+           VA
+          </div>
+          <div>
+           <h4 data-template-id="se401-student-name" class="canva-text font-bold text-slate-800 text-lg" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 15px;">Nguyen Van A</h4>
+           <p data-template-id="se401-student-id" class="canva-text text-sm text-slate-400" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">STU001</p>
+          </div>
+         </div><!-- Stats Row -->
+         <div class="grid grid-cols-3 gap-3 mb-6 flex-shrink-0">
+          <div data-template-id="se401-stat-attended-card" class="rounded-2xl p-4 border border-emerald-100 bg-emerald-50/40 text-center" style="background: rgb(240, 253, 244);"><span data-template-id="se401-stat-attended-num" class="canva-text block text-2xl font-bold text-emerald-700" style="color: rgb(21, 128, 61); font-weight: 700; font-style: normal; font-size: 24px;">23</span> <span data-template-id="se401-stat-attended-lbl" class="canva-text text-xs font-semibold text-emerald-600 block mt-1" style="color: rgb(22, 163, 74); font-weight: 600; font-style: normal; font-size: 15px;">Attended</span>
+          </div>
+          <div data-template-id="se401-stat-missed-card" class="rounded-2xl p-4 border border-rose-100 bg-rose-50/40 text-center" style="background: rgb(255, 241, 242);"><span data-template-id="se401-stat-missed-num" class="canva-text block text-2xl font-bold text-rose-700" style="color: rgb(190, 18, 60); font-weight: 700; font-style: normal; font-size: 24px;">1</span> <span data-template-id="se401-stat-missed-lbl" class="canva-text text-xs font-semibold text-rose-600 block mt-1" style="color: rgb(225, 29, 72); font-weight: 600; font-style: normal; font-size: 15px;">Missed</span>
+          </div>
+          <div data-template-id="se401-stat-rate-card" class="rounded-2xl p-4 border border-amber-100 bg-amber-50/40 text-center" style="background: rgb(255, 251, 235);"><span data-template-id="se401-stat-rate-num" class="canva-text block text-2xl font-bold text-amber-700" style="color: rgb(180, 83, 9); font-weight: 700; font-style: normal; font-size: 24px;">96%</span> <span data-template-id="se401-stat-rate-lbl" class="canva-text text-xs font-semibold text-amber-600 block mt-1" style="color: rgb(217, 119, 6); font-weight: 600; font-style: normal; font-size: 15px;">Rate</span>
+          </div>
+         </div><!-- Section Divider / Header -->
+         <h4 data-template-id="se401-history-title" class="canva-text text-xs font-bold tracking-wider text-slate-500 mb-4 uppercase flex-shrink-0" style="color: rgb(100, 116, 139); font-weight: 700; font-style: normal; font-size: 12px;">SESSION ATTENDANCE HISTORY</h4><!-- History List Scrollable -->
+         <div class="flex-1 overflow-y-auto pr-1 space-y-3 min-h-0 scrollbar-thin">
+          <div data-template-id="se401-hist-row-1" class="canva-card rounded-2xl p-4 border border-slate-100 bg-slate-50/30 flex items-center justify-between" style="background: rgb(248, 250, 251);">
+           <div>
+            <h5 data-template-id="se401-hist-name-1" class="canva-text text-sm font-bold text-slate-700" style="color: rgb(51, 65, 85); font-weight: 700; font-style: normal; font-size: 12px;">Lecture 1: SDLC Methodologies</h5><span data-template-id="se401-hist-date-1" class="canva-text text-xs text-slate-400" style="color: rgb(148, 163, 184); font-weight: 400; font-style: normal; font-size: 15px;">2026-07-11</span>
+           </div><span data-template-id="se401-hist-status-1" class="canva-tag px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full" style="background: rgb(209, 250, 229); color: rgb(6, 95, 70); font-weight: 700; font-style: normal; font-size: 15px;">Present</span>
+          </div>
+          <div data-template-id="se401-hist-row-2" class="canva-card rounded-2xl p-4 border border-slate-100 bg-slate-50/30 flex items-center justify-between" style="background: rgb(248, 250, 251);">
+           <div>
+            <h5 data-template-id="se401-hist-name-2" class="canva-text text-sm font-bold text-slate-700" style="color: rgb(51, 65, 85); font-weight: 700; font-style: normal; font-size: 12px;">Lecture 2: Architecture &amp; Clean Code</h5><span data-template-id="se401-hist-date-2" class="canva-text text-xs text-slate-400" style="color: rgb(148, 163, 184); font-weight: 400; font-style: normal; font-size: 15px;">2026-07-18</span>
+           </div><span data-template-id="se401-hist-status-2" class="canva-tag px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full" style="background: rgb(209, 250, 229); color: rgb(6, 95, 70); font-weight: 700; font-style: normal; font-size: 15px;">Present</span>
+          </div>
+         </div>
+        </article>
+       </div>
+      </div>
+     </section>
+    </div>
+    <div id="panel-course-grades" class="course-panel" role="tabpanel" aria-labelledby="tab-course-grades">
+     <div class="workspace-course active" data-workspace-course="cs301">
+      <div class="flex justify-between items-end gap-3 mb-4">
+       <div>
+        <h3 data-template-id="cs301-grades-title" class="canva-text heading-font" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 22px;">CS301 Grade Book</h3>
+        <p data-template-id="cs301-grades-desc" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Only assessments from Algorithms are shown.</p>
+       </div><span data-template-id="cs301-current-grade" class="canva-tag px-3 py-1.5 rounded-lg" style="background: rgb(204, 251, 241); color: rgb(15, 118, 110); font-weight: 700; font-style: normal; font-size: 15px;">Current: 88%</span>
+      </div>
+      <div class="overflow-x-auto bg-white rounded-xl border border-slate-200">
+       <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+         <tr>
+          <th scope="col" class="text-left p-4">Assessment</th>
+          <th scope="col" class="text-left p-4">Score</th>
+          <th scope="col" class="text-left p-4">Weight</th>
+          <th scope="col" class="text-left p-4">Status</th>
+          <th scope="col" class="text-left p-4">Weighted Points</th>
+         </tr>
+        </thead>
+        <tbody>
+         <tr class="border-t">
+          <td class="p-4 font-medium">Midterm Exam</td>
+          <td class="p-4 font-bold text-teal-700">88%</td>
+          <td class="p-4">30%</td>
+          <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs">Graded</span></td>
+          <td class="p-4 font-bold text-teal-700">26.4%</td>
+         </tr>
+         <tr class="border-t">
+          <td class="p-4 font-medium">Algorithms Project</td>
+          <td class="p-4 font-bold text-teal-700">92%</td>
+          <td class="p-4">20%</td>
+          <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs">Graded</span></td>
+          <td class="p-4 font-bold text-teal-700">18.4%</td>
+         </tr>
+         <tr class="border-t">
+          <td class="p-4 font-medium">Final Exam</td>
+          <td class="p-4 text-slate-400">—</td>
+          <td class="p-4">50%</td>
+          <td class="p-4"><span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs">Pending</span></td>
+          <td class="p-4 text-slate-400">—</td>
+         </tr>
+         <tr class="border-t bg-slate-50">
+          <td class="p-4 font-bold text-slate-700">Total</td>
+          <td class="p-4 font-bold text-teal-700">N/A</td>
+          <td class="p-4 font-bold">100%</td>
+          <td class="p-4"></td>
+          <td class="p-4 font-bold text-teal-700">44.8%</td>
+         </tr>
+        </tbody>
+       </table>
+      </div>
+     </div>
+     <div class="workspace-course" data-workspace-course="ds201">
+      <div class="flex justify-between items-end gap-3 mb-4">
+       <div>
+        <h3 data-template-id="ds201-grades-title" class="canva-text heading-font" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 22px;">DS201 Grade Book</h3>
+        <p data-template-id="ds201-grades-desc" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Only assessments from Data Analysis are shown.</p>
+       </div><span data-template-id="ds201-current-grade" class="canva-tag px-3 py-1.5 rounded-lg" style="background: rgb(219, 234, 254); color: rgb(29, 78, 216); font-weight: 700; font-style: normal; font-size: 15px;">Current: 80.3%</span>
+      </div>
+      <div class="overflow-x-auto bg-white rounded-xl border border-slate-200">
+       <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+         <tr>
+          <th scope="col" class="text-left p-4">Assessment</th>
+          <th scope="col" class="text-left p-4">Score</th>
+          <th scope="col" class="text-left p-4">Weight</th>
+          <th scope="col" class="text-left p-4">Status</th>
+          <th scope="col" class="text-left p-4">Weighted Points</th>
+         </tr>
+        </thead>
+        <tbody>
+         <tr class="border-t">
+          <td class="p-4 font-medium">Data Analysis Report</td>
+          <td class="p-4 font-bold text-teal-700">78%</td>
+          <td class="p-4">40%</td>
+          <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs">Graded</span></td>
+          <td class="p-4 font-bold text-teal-700">31.2%</td>
+         </tr>
+         <tr class="border-t">
+          <td class="p-4 font-medium">Quiz 1</td>
+          <td class="p-4 font-bold text-teal-700">85%</td>
+          <td class="p-4">20%</td>
+          <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs">Graded</span></td>
+          <td class="p-4 font-bold text-teal-700">17%</td>
+         </tr>
+         <tr class="border-t">
+          <td class="p-4 font-medium">Final Presentation</td>
+          <td class="p-4 text-slate-400">—</td>
+          <td class="p-4">40%</td>
+          <td class="p-4"><span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs">Pending</span></td>
+          <td class="p-4 text-slate-400">—</td>
+         </tr>
+         <tr class="border-t bg-slate-50">
+          <td class="p-4 font-bold text-slate-700">Total</td>
+          <td class="p-4 font-bold text-teal-700">N/A</td>
+          <td class="p-4 font-bold">100%</td>
+          <td class="p-4"></td>
+          <td class="p-4 font-bold text-teal-700">48.2%</td>
+         </tr>
+        </tbody>
+       </table>
+      </div>
+     </div>
+     <div class="workspace-course" data-workspace-course="se401">
+      <div class="flex justify-between items-end gap-3 mb-4">
+       <div>
+        <h3 data-template-id="se401-grades-title" class="canva-text heading-font" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 22px;">SE401 Grade Book</h3>
+        <p data-template-id="se401-grades-desc" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Only assessments from Software Engineering are shown.</p>
+       </div><span data-template-id="se401-current-grade" class="canva-tag px-3 py-1.5 rounded-lg" style="background: rgb(237, 233, 254); color: rgb(109, 40, 217); font-weight: 700; font-style: normal; font-size: 15px;">Current: 95%</span>
+      </div>
+      <div class="overflow-x-auto bg-white rounded-xl border border-slate-200">
+       <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+         <tr>
+          <th scope="col" class="text-left p-4">Assessment</th>
+          <th scope="col" class="text-left p-4">Score</th>
+          <th scope="col" class="text-left p-4">Weight</th>
+          <th scope="col" class="text-left p-4">Status</th>
+          <th scope="col" class="text-left p-4">Weighted Points</th>
+         </tr>
+        </thead>
+        <tbody>
+         <tr class="border-t">
+          <td class="p-4 font-medium">Requirement Specification</td>
+          <td class="p-4 font-bold text-teal-700">95%</td>
+          <td class="p-4">25%</td>
+          <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs">Graded</span></td>
+          <td class="p-4 font-bold text-teal-700">23.75%</td>
+         </tr>
+         <tr class="border-t">
+          <td class="p-4 font-medium">Capstone Submission</td>
+          <td class="p-4 text-slate-400">—</td>
+          <td class="p-4">75%</td>
+          <td class="p-4"><span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs">Pending</span></td>
+          <td class="p-4 text-slate-400">—</td>
+         </tr>
+         <tr class="border-t bg-slate-50">
+          <td class="p-4 font-bold text-slate-700">Total</td>
+          <td class="p-4 font-bold text-teal-700">N/A</td>
+          <td class="p-4 font-bold">100%</td>
+          <td class="p-4"></td>
+          <td class="p-4 font-bold text-teal-700">23.75%</td>
+         </tr>
+        </tbody>
+       </table>
+      </div>
+     </div>
+    </div>
+    <div id="panel-ai-prediction" class="course-panel" role="tabpanel" aria-labelledby="tab-ai-prediction">
+     <div class="workspace-course active" data-workspace-course="cs301">
+      <article data-template-id="cs301-ai-card" class="canva-card rounded-2xl p-6 bg-white border border-slate-200 shadow-sm max-w-2xl" style="background: rgb(255, 255, 255);">
+       <div class="mb-4"><span data-template-id="cs301-ai-eyebrow" class="canva-tag text-xs px-2 py-1 rounded-md inline-block mb-3" style="color: rgb(15, 118, 110); font-weight: 700; font-style: normal; font-size: 12px;">Course-specific forecast</span>
+        <h3 data-template-id="cs301-ai-title" class="canva-text mb-2" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 23px;">Predicted final grade: A−</h3>
+       </div>
+       <p data-template-id="cs301-ai-desc" class="canva-text mb-4" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">A− grade is likely with consistent effort on remaining assignments.</p>
+       <div class="flex items-center gap-2"><span data-template-id="cs301-ai-risk" class="canva-tag px-3 py-1 rounded-lg text-sm font-semibold" style="background: rgb(209, 250, 229); color: rgb(4, 120, 87); font-weight: 700; font-style: normal; font-size: 15px;">On Track</span>
+       </div>
+      </article>
+     </div>
+     <div class="workspace-course" data-workspace-course="ds201">
+      <article data-template-id="ds201-ai-card" class="canva-card rounded-2xl p-6 bg-white border border-slate-200 shadow-sm max-w-2xl" style="background: rgb(255, 255, 255);">
+       <div class="mb-4"><span data-template-id="ds201-ai-eyebrow" class="canva-tag text-xs px-2 py-1 rounded-md inline-block mb-3" style="color: rgb(15, 118, 110); font-weight: 700; font-style: normal; font-size: 12px;">Course-specific forecast</span>
+        <h3 data-template-id="ds201-ai-title" class="canva-text mb-2" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 23px;">Predicted final grade: B</h3>
+       </div>
+       <p data-template-id="ds201-ai-desc" class="canva-text mb-4" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Current performance is stable, but the final presentation carries 40% of the course grade.</p>
+       <div class="flex items-center gap-2"><span data-template-id="ds201-ai-risk" class="canva-tag px-3 py-1 rounded-lg text-sm font-semibold" style="background: rgb(254, 243, 199); color: rgb(180, 83, 9); font-weight: 700; font-style: normal; font-size: 15px;">Caution</span>
+       </div>
+      </article>
+     </div>
+     <div class="workspace-course" data-workspace-course="se401">
+      <article data-template-id="se401-ai-card" class="canva-card rounded-2xl p-6 bg-white border border-slate-200 shadow-sm max-w-2xl" style="background: rgb(255, 255, 255);">
+       <div class="mb-4"><span data-template-id="se401-ai-eyebrow" class="canva-tag text-xs px-2 py-1 rounded-md inline-block mb-3" style="color: rgb(15, 118, 110); font-weight: 700; font-style: normal; font-size: 12px;">Course-specific forecast</span>
+        <h3 data-template-id="se401-ai-title" class="canva-text mb-2" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 23px;">Predicted outcome: Pass</h3>
+       </div>
+       <p data-template-id="se401-ai-desc" class="canva-text mb-4" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Excellent requirements work and attendance indicate a 96% likelihood of passing the capstone.</p>
+       <div class="flex items-center gap-2"><span data-template-id="se401-ai-risk" class="canva-tag px-3 py-1 rounded-lg text-sm font-semibold" style="background: rgb(209, 250, 229); color: rgb(4, 120, 87); font-weight: 700; font-style: normal; font-size: 15px;">On Track</span>
+       </div>
+      </article>
+     </div>
+    </div>
+    <section id="page-grades" class="app-page">
+     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+      <div>
+       <h2 data-template-id="grades-title" class="canva-text heading-font mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 25px;">All-Courses Grade Management</h2>
+       <p data-template-id="grades-subtitle" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Review grades across the full active course portfolio.</p>
+      </div>
+      <div class="flex items-center gap-4 relative"><span data-template-id="course-filter-label" class="canva-text text-sm font-semibold text-slate-500 whitespace-nowrap" style="color: rgb(100, 116, 139); font-weight: 600; font-style: normal; font-size: 14px;">Filter by Course:</span>
+       <div class="relative w-64"><button id="custom-dropdown-btn" type="button" class="w-full bg-white border-2 border-teal-600 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 flex justify-between items-center focus:outline-none focus:ring-2 focus:ring-teal-500/50" aria-haspopup="listbox" aria-expanded="false"> <span id="dropdown-selected-text">All Courses</span> <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 transition-transform duration-200" id="dropdown-arrow"></i> </button>
+        <div id="custom-dropdown-menu" class="hidden absolute right-0 mt-2 w-full bg-[#1e293b] rounded-xl shadow-xl border border-slate-700/50 p-3 z-50 animate-fadeIn" role="listbox" aria-label="Course options">
+         <div class="text-[10px] font-bold text-teal-400 tracking-wider uppercase mb-2 px-3">
+          SELECT COURSE
+         </div>
+         <div class="space-y-1"><button type="button" role="option" aria-selected="true" data-value="all" class="dropdown-item w-full text-left px-3 py-2 rounded-lg text-sm text-teal-400 font-semibold hover:bg-slate-800 transition-colors">All Courses</button> <button type="button" role="option" aria-selected="false" data-value="cs301" class="dropdown-item w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">CS301 — Algorithms</button> <button type="button" role="option" aria-selected="false" data-value="ds201" class="dropdown-item w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">DS201 — Data Analysis</button> <button type="button" role="option" aria-selected="false" data-value="se401" class="dropdown-item w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">SE401 — Software Eng.</button>
+         </div>
+        </div>
+       </div>
+      </div>
+     </div>
+     <div class="overflow-x-auto bg-white rounded-xl border border-slate-200">
+      <table class="w-full text-sm">
+       <thead class="bg-slate-50">
+        <tr>
+         <th scope="col" class="p-4 text-left">Assignment / Task</th>
+         <th scope="col" class="p-4 text-left">Course</th>
+         <th scope="col" class="p-4 text-left">Score</th>
+         <th scope="col" class="p-4 text-left">Weight</th>
+         <th scope="col" class="p-4 text-left">Status</th>
+        </tr>
+       </thead>
+       <tbody id="all-grade-rows">
+        <tr data-course="cs301" class="border-t">
+         <td class="p-4 font-medium text-slate-700">Midterm Exam</td>
+         <td class="p-4 text-slate-500">CS301</td>
+         <td class="p-4 font-bold text-teal-600">88%</td>
+         <td class="p-4 text-slate-500">30%</td>
+         <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-md text-xs font-semibold">Graded</span></td>
+        </tr>
+        <tr data-course="cs301" class="border-t">
+         <td class="p-4 font-medium text-slate-700">Algorithms Project</td>
+         <td class="p-4 text-slate-500">CS301</td>
+         <td class="p-4 font-bold text-teal-600">92%</td>
+         <td class="p-4 text-slate-500">20%</td>
+         <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-md text-xs font-semibold">Graded</span></td>
+        </tr>
+        <tr data-course="cs301" class="border-t">
+         <td class="p-4 font-medium text-slate-700">Final Exam</td>
+         <td class="p-4 text-slate-500">CS301</td>
+         <td class="p-4 text-slate-400">—</td>
+         <td class="p-4 text-slate-500">50%</td>
+         <td class="p-4"><span class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-md text-xs font-semibold">Pending</span></td>
+        </tr>
+        <tr data-course="ds201" class="border-t">
+         <td class="p-4 font-medium text-slate-700">Data Analysis Report</td>
+         <td class="p-4 text-slate-500">DS201</td>
+         <td class="p-4 font-bold text-teal-600">78%</td>
+         <td class="p-4 text-slate-500">40%</td>
+         <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-md text-xs font-semibold">Graded</span></td>
+        </tr>
+        <tr data-course="ds201" class="border-t">
+         <td class="p-4 font-medium text-slate-700">Quiz 1</td>
+         <td class="p-4 text-slate-500">DS201</td>
+         <td class="p-4 font-bold text-teal-600">85%</td>
+         <td class="p-4 text-slate-500">20%</td>
+         <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-md text-xs font-semibold">Graded</span></td>
+        </tr>
+        <tr data-course="ds201" class="border-t">
+         <td class="p-4 font-medium text-slate-700">Final Presentation</td>
+         <td class="p-4 text-slate-500">DS201</td>
+         <td class="p-4 text-slate-400">—</td>
+         <td class="p-4 text-slate-500">40%</td>
+         <td class="p-4"><span class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-md text-xs font-semibold">Pending</span></td>
+        </tr>
+        <tr data-course="se401" class="border-t">
+         <td class="p-4 font-medium text-slate-700">Requirement Specification</td>
+         <td class="p-4 text-slate-500">SE401</td>
+         <td class="p-4 font-bold text-teal-600">95%</td>
+         <td class="p-4 text-slate-500">25%</td>
+         <td class="p-4"><span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-md text-xs font-semibold">Graded</span></td>
+        </tr>
+       </tbody>
+      </table>
+     </div>
+    </section>
+    <section id="page-visualizations" class="app-page">
+     <h2 data-template-id="visualizations-title" class="canva-text heading-font mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 25px;">Visualization Report</h2>
+     <p data-template-id="visualizations-desc" class="canva-text mb-6" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">A concise comparison of current performance across active courses.</p>
+     <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+      <!-- Navigation Cards Column (Left) -->
+      <nav class="md:col-span-4 flex flex-col gap-3" aria-label="Visualization topics">
+       <button type="button" id="viz-btn-distribution" class="viz-nav-card active text-left p-4 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 transition-all flex items-center gap-4 w-full" aria-pressed="true">
+        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0">
+         <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+        </div>
+        <div>
+         <h4 data-template-id="viz-nav-dist-title" class="canva-text font-bold text-slate-800 text-sm" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 14px;">Grade Distribution</h4>
+         <p data-template-id="viz-nav-dist-desc" class="canva-text text-xs text-slate-400" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">Histogram of scores</p>
+        </div></button> <button type="button" id="viz-btn-trend" class="viz-nav-card text-left p-4 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 transition-all flex items-center gap-4 w-full" aria-pressed="false">
+        <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+         <i data-lucide="trending-up" class="w-5 h-5"></i>
+        </div>
+        <div>
+         <h4 data-template-id="viz-nav-trend-title" class="canva-text font-bold text-slate-800 text-sm" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 14px;">GPA Trend</h4>
+         <p data-template-id="viz-nav-trend-desc" class="canva-text text-xs text-slate-400" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">Student performance line</p>
+        </div></button> <button type="button" id="viz-btn-difficulty" class="viz-nav-card text-left p-4 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 transition-all flex items-center gap-4 w-full" aria-pressed="false">
+        <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+         <i data-lucide="help-circle" class="w-5 h-5"></i>
+        </div>
+        <div>
+         <h4 data-template-id="viz-nav-diff-title" class="canva-text font-bold text-slate-800 text-sm" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 14px;">Course Difficulty</h4>
+         <p data-template-id="viz-nav-diff-desc" class="canva-text text-xs text-slate-400" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">Assignment averages comparison</p>
+        </div></button> <button type="button" id="viz-btn-radar" class="viz-nav-card text-left p-4 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 transition-all flex items-center gap-4 w-full" aria-pressed="false">
+        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+         <i data-lucide="shield" class="w-5 h-5"></i>
+        </div>
+        <div>
+         <h4 data-template-id="viz-nav-radar-title" class="canva-text font-bold text-slate-800 text-sm" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 14px;">Performance Radar</h4>
+         <p data-template-id="viz-nav-radar-desc" class="canva-text text-xs text-slate-400" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">Skill distribution metrics</p>
+        </div></button>
+      </nav><!-- Active Chart Display Card (Right) -->
+      <article data-template-id="visualization-card" class="canva-card md:col-span-8 rounded-2xl p-6 bg-white border border-slate-200 min-h-[420px] flex flex-col justify-between" style="background: rgb(255, 255, 255);">
+       <!-- Active Chart container -->
+       <div class="flex-1 flex flex-col justify-center items-center py-6 min-h-[300px]" id="viz-chart-viewport">
+        <!-- 1) Grade Distribution Histogram -->
+        <div id="viz-chart-distribution" class="w-full flex flex-col items-center justify-between h-full">
+         <div class="w-full flex items-end justify-around h-60 border-b border-slate-200 px-6 pb-2 relative">
+          <!-- Horizontal Y-axis lines -->
+          <div class="absolute inset-x-0 bottom-[100%] border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">2</span>
+          </div>
+          <div class="absolute inset-x-0 bottom-[50%] border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">1</span>
+          </div>
+          <div class="absolute inset-x-0 bottom-[0%] border-t border-slate-200 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">0</span>
+          </div>
+          <div class="flex flex-col items-center w-[12%] z-10">
+           <div class="text-xs font-bold text-slate-700 mb-1">
+            0
+           </div>
+           <div class="w-full bg-teal-700 rounded-t-md transition-all duration-500" style="height: 0px"></div>
+          </div>
+          <div class="flex flex-col items-center w-[12%] z-10">
+           <div class="text-xs font-bold text-slate-700 mb-1">
+            0
+           </div>
+           <div class="w-full bg-teal-700 rounded-t-md transition-all duration-500" style="height: 0px"></div>
+          </div>
+          <div class="flex flex-col items-center w-[12%] z-10">
+           <div class="text-xs font-bold text-slate-700 mb-1">
+            0
+           </div>
+           <div class="w-full bg-teal-700 rounded-t-md transition-all duration-500" style="height: 0px"></div>
+          </div>
+          <div class="flex flex-col items-center w-[12%] z-10">
+           <div class="text-xs font-bold text-slate-700 mb-1">
+            2
+           </div>
+           <div class="w-full bg-teal-700 rounded-t-md transition-all duration-500" style="height: 200px"></div>
+          </div>
+          <div class="flex flex-col items-center w-[12%] z-10">
+           <div class="text-xs font-bold text-slate-700 mb-1">
+            2
+           </div>
+           <div class="w-full bg-teal-700 rounded-t-md transition-all duration-500" style="height: 200px"></div>
+          </div>
+         </div>
+         <div class="grid grid-cols-5 text-center text-xs text-slate-500 mt-4 w-full">
+          <span>0-20%</span><span>21-40%</span><span>41-60%</span><span>61-80%</span><span>81-100%</span>
+         </div>
+        </div><!-- 2) GPA Trend Line Chart -->
+        <div id="viz-chart-trend" class="w-full hidden flex-col items-center justify-between h-full">
+         <div class="w-full h-60 border-b border-slate-200 px-6 pb-2 relative flex items-end">
+          <!-- Horizontal Y-axis lines -->
+          <div class="absolute inset-x-0 top-0 border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">100</span>
+          </div>
+          <div class="absolute inset-x-0 top-[20%] border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">80</span>
+          </div>
+          <div class="absolute inset-x-0 top-[40%] border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">60</span>
+          </div>
+          <div class="absolute inset-x-0 top-[60%] border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">40</span>
+          </div>
+          <div class="absolute inset-x-0 top-[80%] border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">20</span>
+          </div>
+          <div class="absolute inset-x-0 bottom-0 border-t border-slate-200 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">0</span>
+          </div><!-- Line SVG overlay overlaying the 4 data points -->
+          <svg class="absolute inset-0 w-full h-full p-6" viewBox="0 0 400 100" preserveAspectRatio="none">
+           <!-- SVG line path based on trend points: 80%, 93%, 73%, 68% --> <!-- Map Y where 100% is top 0, 0% is bottom 100. -> Y points: 20, 7, 27, 32 --> <path d="M 50 20 L 150 7 L 250 27 L 350 32" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round"></path>
+          </svg><!-- Interactive Points & Tooltips -->
+          <div class="absolute inset-x-0 inset-y-0 p-6 flex justify-between items-stretch">
+           <!-- Point 1: B (80%) -->
+           <div class="flex-1 flex flex-col justify-end items-center relative" style="height: 100%;">
+            <span class="absolute text-xs font-bold text-sky-700 bg-white px-1 rounded" style="bottom: 82%;">80%</span>
+            <div class="w-3 h-3 rounded-full bg-white border-2 border-sky-600 z-10" style="position: absolute; bottom: 80%; transform: translateY(50%);"></div>
+           </div><!-- Point 2: E (93%) -->
+           <div class="flex-1 flex flex-col justify-end items-center relative" style="height: 100%;">
+            <span class="absolute text-xs font-bold text-sky-700 bg-white px-1 rounded" style="bottom: 95%;">93%</span>
+            <div class="w-3 h-3 rounded-full bg-white border-2 border-sky-600 z-10" style="position: absolute; bottom: 93%; transform: translateY(50%);"></div>
+           </div><!-- Point 3: F (73%) -->
+           <div class="flex-1 flex flex-col justify-end items-center relative" style="height: 100%;">
+            <span class="absolute text-xs font-bold text-sky-700 bg-white px-1 rounded" style="bottom: 75%;">73%</span>
+            <div class="w-3 h-3 rounded-full bg-white border-2 border-sky-600 z-10" style="position: absolute; bottom: 73%; transform: translateY(50%);"></div>
+           </div><!-- Point 4: G (68%) -->
+           <div class="flex-1 flex flex-col justify-end items-center relative" style="height: 100%;">
+            <span class="absolute text-xs font-bold text-sky-700 bg-white px-1 rounded" style="bottom: 70%;">68%</span>
+            <div class="w-3 h-3 rounded-full bg-white border-2 border-sky-600 z-10" style="position: absolute; bottom: 68%; transform: translateY(50%);"></div>
+           </div>
+          </div>
+         </div>
+         <div class="grid grid-cols-4 text-center text-xs text-slate-500 mt-4 w-full">
+          <span>B</span><span>E</span><span>F</span><span>G</span>
+         </div>
+        </div><!-- 3) Course Difficulty Bar Chart -->
+        <div id="viz-chart-difficulty" class="w-full hidden flex-col items-center justify-between h-full">
+         <div class="w-full flex items-end justify-around h-60 border-b border-slate-200 px-6 pb-2 relative">
+          <!-- Horizontal Y-axis lines -->
+          <div class="absolute inset-x-0 top-0 border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">100</span>
+          </div>
+          <div class="absolute inset-x-0 top-[20%] border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">80</span>
+          </div>
+          <div class="absolute inset-x-0 top-[40%] border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">60</span>
+          </div>
+          <div class="absolute inset-x-0 top-[60%] border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">40</span>
+          </div>
+          <div class="absolute inset-x-0 top-[80%] border-t border-slate-100 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">20</span>
+          </div>
+          <div class="absolute inset-x-0 bottom-0 border-t border-slate-200 flex justify-between text-[10px] text-slate-400"><span class="bg-white px-1">0</span>
+          </div>
+          <div class="flex flex-col items-center w-[22%] z-10">
+           <div class="text-xs font-bold text-purple-700 mb-1">
+            79.0%
+           </div>
+           <div class="w-full bg-purple-600 rounded-t-lg transition-all duration-500" style="height: 189px"></div>
+          </div>
+          <div class="flex flex-col items-center w-[22%] z-10">
+           <div class="text-xs font-bold text-purple-700 mb-1">
+            77.3%
+           </div>
+           <div class="w-full bg-purple-600 rounded-t-lg transition-all duration-500" style="height: 185px"></div>
+          </div>
+          <div class="flex flex-col items-center w-[22%] z-10">
+           <div class="text-xs font-bold text-purple-700 mb-1">
+            79.0%
+           </div>
+           <div class="w-full bg-purple-600 rounded-t-lg transition-all duration-500" style="height: 189px"></div>
+          </div>
+         </div>
+         <div class="grid grid-cols-3 text-center text-xs text-slate-500 mt-4 w-full">
+          <span>Assignment</span><span>Midterm</span><span>Final</span>
+         </div>
+        </div><!-- 4) Performance Radar Chart -->
+        <div id="viz-chart-radar" class="w-full hidden flex-col items-center justify-center h-full relative">
+         <div class="w-64 h-64 relative flex items-center justify-center">
+          <!-- Concentric indicator circles -->
+          <div class="absolute w-56 h-56 rounded-full border border-slate-100"></div>
+          <div class="absolute w-44 h-44 rounded-full border border-slate-100"></div>
+          <div class="absolute w-28 h-28 rounded-full border border-slate-100"></div>
+          <div class="absolute w-14 h-14 rounded-full border border-slate-100"></div><!-- Radar axes lines -->
+          <div class="absolute w-full h-[1px] bg-slate-200/50 rotate-90"></div>
+          <div class="absolute w-full h-[1px] bg-slate-200/50 rotate-[210deg]"></div>
+          <div class="absolute w-full h-[1px] bg-slate-200/50 rotate-[330deg]"></div><!-- Labels around radar --> <span class="absolute text-[10px] font-bold text-slate-700 top-2">Attendance (75%)</span> <span class="absolute text-[10px] font-bold text-slate-700 bottom-2 left-6">GPA Equivalent (63%)</span> <span class="absolute text-[10px] font-bold text-slate-700 right-[-14px]">Pass Rate (100%)</span> <!-- Radar Area SVG Representation -->
+          <svg class="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 256 256">
+           <!-- Triangle connecting: Top(75%), Bottom-Left(63%), Right(100%) --> <!-- Center of SVG is at (128, 128) --> <!-- Top Vertex: (128, 128 - 75) = (128, 53) --> <!-- Right Vertex: (128 + 100, 128) = (228, 128) --> <!-- Bottom-Left Vertex (offset 210deg -> cos 210 = -0.866, sin 210 = 0.5): (128 - 63*0.866, 128 + 63*0.5) = (73, 159) --> <polygon points="128,53 228,128 73,159" fill="rgba(217,119,6,0.18)" stroke="#d97706" stroke-width="2.5"></polygon> <!-- Axis points markers --> <circle cx="128" cy="53" r="3.5" fill="#d97706"></circle> <circle cx="228" cy="128" r="3.5" fill="#d97706"></circle> <circle cx="73" cy="159" r="3.5" fill="#d97706"></circle>
+          </svg>
+         </div>
+        </div>
+       </div><!-- Dynamic description beneath the active chart -->
+       <footer class="mt-4 pt-4 border-t border-slate-100 text-center text-xs italic text-slate-500">
+        <p id="viz-chart-caption" data-template-id="viz-chart-caption-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Distribution of calculated student performance scores (0% - 100%).</p>
+       </footer>
+      </article>
+     </div>
+    </section>
+    <section id="page-predictions" class="app-page">
+     <h2 data-template-id="predictions-title" class="canva-text heading-font mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 25px;">Grade Predictions &amp; Alerts</h2>
+     <p data-template-id="predictions-desc" class="canva-text mb-6" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">AI-powered insights based on current academic trends.</p>
+     <div class="grid md:grid-cols-3 gap-4">
+      <article data-template-id="prediction-1" class="canva-card rounded-xl p-5 border border-emerald-200" style="background: rgb(255, 255, 255);">
+       <h3 data-template-id="prediction-1-title" class="canva-text mb-2" style="color: rgb(4, 120, 87); font-weight: 700; font-style: normal; font-size: 18px;">CS301 · A− forecast</h3>
+       <p data-template-id="prediction-1-desc" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Strong performance in theoretical coursework with consistent attendance.</p>
+      </article>
+      <article data-template-id="prediction-2" class="canva-card rounded-xl p-5 border border-amber-200" style="background: rgb(255, 255, 255);">
+       <h3 data-template-id="prediction-2-title" class="canva-text mb-2" style="color: rgb(180, 83, 9); font-weight: 700; font-style: normal; font-size: 18px;">DS201 · B forecast</h3>
+       <p data-template-id="prediction-2-desc" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Monitor the final presentation closely.</p>
+      </article>
+      <article data-template-id="prediction-3" class="canva-card rounded-xl p-5 border border-emerald-200" style="background: rgb(255, 255, 255);">
+       <h3 data-template-id="prediction-3-title" class="canva-text mb-2" style="color: rgb(4, 120, 87); font-weight: 700; font-style: normal; font-size: 18px;">SE401 · Pass forecast</h3>
+       <p data-template-id="prediction-3-desc" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Excellent requirement specification work supports pass likelihood.</p>
+      </article>
+     </div>
+    </section>
+    <section id="page-export" class="app-page">
+     <div class="mb-6">
+      <h2 data-template-id="export-title" class="canva-text heading-font mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 25px;">Export Course Report</h2>
+      <p data-template-id="export-desc" class="canva-text" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Select a course to view detailed information and export as JSON.</p>
+     </div>
+     <div class="max-w-2xl">
+      <div class="mb-6"><label data-template-id="export-select-label" class="canva-text block text-sm font-semibold mb-3" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 15px;">Select Course:</label>
+       <div class="relative w-full md:w-64"><select id="export-course-select" class="w-full border-2 border-teal-600 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/50 appearance-none bg-white pr-10"> <option value="cs301">CS301 — Algorithms</option> <option value="ds201">DS201 — Data Analysis</option> <option value="se401">SE401 — Software Engineering</option> </select> <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none"></i>
+       </div>
+      </div>
+      <article data-template-id="export-info-card" class="canva-card rounded-2xl p-6 bg-white border border-slate-200 mb-6" style="background: rgb(255, 255, 255);">
+       <div class="space-y-6"><!-- Course Header -->
+        <div>
+         <h3 data-template-id="export-course-name" class="canva-text text-2xl font-bold mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 22px;">CS301 — Algorithms</h3>
+         <p data-template-id="export-course-info" class="canva-text text-slate-500" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">42 enrolled · Weighted grading · Dr. Nguyen</p>
+        </div><!-- Stats Row -->
+        <div class="grid grid-cols-3 gap-4">
+         <div class="rounded-lg p-4 bg-slate-50 border border-slate-200"><span data-template-id="export-stat-current" class="canva-text block text-xl font-bold text-teal-700 mb-1" style="color: rgb(15, 118, 110); font-weight: 700; font-style: normal; font-size: 15px;">88%</span> <span data-template-id="export-stat-current-label" class="canva-text text-xs text-slate-500" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">Current Grade</span>
+         </div>
+         <div class="rounded-lg p-4 bg-slate-50 border border-slate-200"><span data-template-id="export-stat-instructor" class="canva-text block font-semibold text-slate-700 mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 15px;">Dr. Nguyen</span> <span data-template-id="export-stat-instructor-label" class="canva-text text-xs text-slate-500" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">Instructor</span>
+         </div>
+         <div class="rounded-lg p-4 bg-slate-50 border border-slate-200"><span data-template-id="export-stat-enrolled" class="canva-text block font-semibold text-slate-700 mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 15px;">42</span> <span data-template-id="export-stat-enrolled-label" class="canva-text text-xs text-slate-500" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 12px;">Enrolled</span>
+         </div>
+        </div><!-- Grades Table -->
+        <div>
+         <h4 data-template-id="export-grades-heading" class="canva-text font-bold text-slate-700 mb-3" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 15px;">Grades &amp; Assessments</h4>
+         <div class="overflow-x-auto border border-slate-200 rounded-lg">
+          <table class="w-full text-sm" id="export-grades-table">
+           <thead class="bg-slate-50">
+            <tr>
+             <th scope="col" class="text-left p-3">Assessment</th>
+             <th scope="col" class="text-left p-3">Score</th>
+             <th scope="col" class="text-left p-3">Weight</th>
+             <th scope="col" class="text-left p-3">Status</th>
+            </tr>
+           </thead>
+           <tbody id="export-grades-body">
+           </tbody>
+          </table>
+         </div>
+        </div><!-- Attendance Summary -->
+        <div>
+         <h4 data-template-id="export-attendance-heading" class="canva-text font-bold text-slate-700 mb-3" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 15px;">Attendance Summary</h4>
+         <div class="grid grid-cols-3 gap-3">
+          <div class="rounded-lg p-3 bg-emerald-50 border border-emerald-100 text-center"><span data-template-id="export-attendance-present" class="canva-text block text-lg font-bold text-emerald-700" style="color: rgb(21, 128, 61); font-weight: 700; font-style: normal; font-size: 15px;">22</span> <span data-template-id="export-attendance-present-label" class="canva-text text-xs text-emerald-600" style="color: rgb(22, 163, 74); font-weight: 600; font-style: normal; font-size: 12px;">Present</span>
+          </div>
+          <div class="rounded-lg p-3 bg-rose-50 border border-rose-100 text-center"><span data-template-id="export-attendance-absent" class="canva-text block text-lg font-bold text-rose-700" style="color: rgb(190, 18, 60); font-weight: 700; font-style: normal; font-size: 15px;">2</span> <span data-template-id="export-attendance-absent-label" class="canva-text text-xs text-rose-600" style="color: rgb(225, 29, 72); font-weight: 600; font-style: normal; font-size: 12px;">Absent</span>
+          </div>
+          <div class="rounded-lg p-3 bg-amber-50 border border-amber-100 text-center"><span data-template-id="export-attendance-rate" class="canva-text block text-lg font-bold text-amber-700" style="color: rgb(180, 83, 9); font-weight: 700; font-style: normal; font-size: 15px;">92%</span> <span data-template-id="export-attendance-rate-label" class="canva-text text-xs text-amber-600" style="color: rgb(217, 119, 6); font-weight: 600; font-style: normal; font-size: 12px;">Attendance Rate</span>
+          </div>
+         </div>
+        </div>
+       </div>
+      </article><button id="export-json-btn" type="button" data-template-id="export-button" class="canva-button w-full md:w-auto px-6 py-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2" style="background: rgb(15, 118, 110); color: rgb(255, 255, 255); font-weight: 600; font-style: normal; font-size: 15px;">Download Report (JSON)</button>
+     </div>
+    </section>
+    <section id="page-profile" class="app-page">
+     <p data-template-id="profile-subtitle" class="canva-text mb-6" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Your student profile and enrollment summary.</p><!-- Profile Header Card -->
+     <article data-template-id="profile-header-card" class="canva-card rounded-xl p-6 mb-6 flex items-start justify-between" style="background: rgb(255, 255, 255);">
+      <div class="flex items-start gap-4 flex-1">
+       <div class="w-16 h-16 rounded-full bg-teal-100 text-teal-700 grid place-items-center flex-shrink-0"><i data-lucide="user" class="w-8 h-8"></i>
+       </div>
+       <div>
+        <h3 data-template-id="profile-name" class="canva-text mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 18px;">Nguyen Van A</h3>
+        <p data-template-id="profile-role" class="canva-text text-sm mb-3" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 15px;">Student</p>
+        <div class="flex gap-2 flex-wrap">
+         <span data-template-id="profile-badge-1" class="canva-tag inline-flex px-2 py-1 rounded text-xs" style="background: rgb(219, 234, 254); color: rgb(29, 78, 216); font-weight: 700; font-style: normal; font-size: 12px;">Computer Science</span> <span data-template-id="profile-badge-2" class="canva-tag inline-flex px-2 py-1 rounded text-xs" style="background: rgb(204, 251, 241); color: rgb(15, 118, 110); font-weight: 700; font-style: normal; font-size: 12px;">Main Campus</span>
+        </div>
+       </div>
+      </div><button id="edit-profile-btn" type="button" data-template-id="edit-profile-button" class="canva-button px-4 py-2 rounded-lg text-sm font-semibold flex-shrink-0" style="background: rgb(255, 255, 255); color: rgb(15, 118, 110); font-weight: 600; font-style: normal; font-size: 15px;">Edit Profile</button>
+     </article><!-- Profile Stats -->
+     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+      <article data-template-id="profile-stat-courses" class="canva-card rounded-xl p-4 text-center" style="background: rgb(255, 255, 255);">
+       <p data-template-id="profile-stat-courses-val" class="canva-text text-2xl font-bold mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 24px;">4</p>
+       <p data-template-id="profile-stat-courses-label" class="canva-text text-xs text-slate-500" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 11px;">Enrolled Courses</p>
+      </article>
+      <article data-template-id="profile-stat-academy" class="canva-card rounded-xl p-4 text-center" style="background: rgb(255, 255, 255);">
+       <p data-template-id="profile-stat-academy-val" class="canva-text text-2xl font-bold mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 24px;">GPA</p>
+       <p data-template-id="profile-stat-academy-label" class="canva-text text-xs text-slate-500" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 11px;">GPA</p>
+      </article>
+      <article data-template-id="profile-stat-office" class="canva-card rounded-xl p-4 text-center" style="background: rgb(255, 255, 255);">
+       <p data-template-id="profile-stat-office-val" class="canva-text text-2xl font-bold mb-1" style="color: rgb(15, 23, 42); font-weight: 700; font-style: normal; font-size: 24px;">2nd Year</p>
+       <p data-template-id="profile-stat-office-label" class="canva-text text-xs text-slate-500" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 11px;">Year</p>
+      </article>
+     </div><!-- Account Settings Section -->
+     <div class="flex items-center justify-between mb-4">
+      <div>
+       <h3 data-template-id="account-settings-title" class="canva-text heading-font text-lg mb-0.5" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 18px;">Account Settings</h3>
+       <p data-template-id="account-settings-subtitle" class="canva-text text-sm text-slate-500" style="color: rgb(100, 116, 139); font-weight: 400; font-style: normal; font-size: 13px;">Manage your login email and security password.</p>
+      </div><button id="update-settings-btn" type="button" data-template-id="update-settings-button" class="canva-button px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2" style="background: rgb(255, 255, 255); color: rgb(15, 118, 110); font-weight: 600; font-style: normal; font-size: 15px;">Update Settings</button>
+     </div>
+     <article data-template-id="account-settings-card" class="canva-card rounded-xl p-6 grid sm:grid-cols-2 gap-6" style="background: rgb(255, 255, 255);">
+      <div>
+       <p data-template-id="account-email-label" class="canva-text text-xs font-bold text-slate-500 uppercase tracking-wide mb-2" style="color: rgb(100, 116, 139); font-weight: 700; font-style: normal; font-size: 10px;">Registered Email</p>
+       <p data-template-id="account-email-value" class="canva-text font-medium" style="color: rgb(15, 23, 42); font-weight: 400; font-style: normal; font-size: 14px;">nguyen.van.a@university.edu</p>
+      </div>
+      <div>
+       <p data-template-id="account-password-label" class="canva-text text-xs font-bold text-slate-500 uppercase tracking-wide mb-2" style="color: rgb(100, 116, 139); font-weight: 700; font-style: normal; font-size: 10px;">Security Password</p>
+       <p data-template-id="account-password-value" class="canva-text font-medium" style="color: rgb(15, 23, 42); font-weight: 400; font-style: normal; font-size: 14px;">••••••••</p>
+      </div>
+     </article><!-- Edit Profile Modal -->
+     <div id="modal-edit-profile" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-fadeIn">
+       <div class="flex items-center justify-between mb-4">
+        <h3 data-template-id="modal-edit-title" class="canva-text heading-font text-lg" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 20px;">Edit Profile</h3><button type="button" id="modal-edit-close" class="text-slate-400 hover:text-slate-600 p-1" aria-label="Close modal"> <i data-lucide="x" class="w-5 h-5"></i> </button>
+       </div>
+       <form id="form-edit-profile" class="space-y-4">
+        <div>
+         <label data-template-id="modal-edit-name-label" class="canva-text block text-sm font-semibold mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 15px;">Name</label> <input id="edit-name-input" type="text" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50">
+        </div>
+        <div>
+         <label data-template-id="modal-edit-avatar-label" class="canva-text block text-sm font-semibold mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 15px;">Avatar Image (Profile Pic)</label> <input id="edit-avatar-input" type="file" accept="image/*" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50">
+         <p class="text-xs text-slate-400 mt-1">(PNG/JPG only)</p>
+        </div>
+        <div>
+         <label data-template-id="modal-edit-year-label" class="canva-text block text-sm font-semibold mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 15px;">Year</label> <input id="edit-year-input" type="text" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50">
+        </div>
+        <div>
+         <label data-template-id="modal-edit-department-label" class="canva-text block text-sm font-semibold mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 15px;">Subject (Department)</label> <input id="edit-department-input" type="text" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50">
+        </div>
+        <div class="flex gap-3 pt-4">
+         <button type="button" id="edit-cancel-btn" class="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button> <button type="submit" data-template-id="modal-edit-submit" class="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700" style="background: rgb(15, 118, 110); color: rgb(255, 255, 255); font-weight: 600; font-style: normal; font-size: 15px;">Save Changes</button>
+        </div>
+       </form>
+      </div>
+     </div><!-- Update Settings Modal -->
+     <div id="modal-update-settings" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-fadeIn">
+       <div class="flex items-center justify-between mb-4">
+        <h3 data-template-id="modal-settings-title" class="canva-text heading-font text-lg" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 20px;">Account Settings</h3><button type="button" id="modal-settings-close" class="text-slate-400 hover:text-slate-600 p-1" aria-label="Close modal"> <i data-lucide="x" class="w-5 h-5"></i> </button>
+       </div>
+       <form id="form-update-settings" class="space-y-4">
+        <div>
+         <label data-template-id="modal-settings-email-label" class="canva-text block text-sm font-semibold mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 15px;">Email Address</label> <input id="settings-email-input" type="email" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50">
+        </div>
+        <div>
+         <label data-template-id="modal-settings-password-label" class="canva-text block text-sm font-semibold mb-1" style="color: rgb(15, 23, 42); font-weight: 600; font-style: normal; font-size: 15px;">New Password</label> <input id="settings-password-input" type="password" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50">
+        </div>
+        <div class="flex gap-3 pt-4">
+         <button type="button" id="settings-cancel-btn" class="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button> <button type="submit" data-template-id="modal-settings-submit" class="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700" style="background: rgb(15, 118, 110); color: rgb(255, 255, 255); font-weight: 600; font-style: normal; font-size: 15px;">Save Settings</button>
+        </div>
+       </form>
+      </div>
+     </div>
+    </section>
+   </main>
+  </div>
+  <script src="/_sdk/1b56991da13617fe.editing_sdk.js" integrity="sha512-7QHNPLPvkV/StrSqMG/kmvYbG8mJP4lGjSAmVe52ZYilblz47/1vWJa6sAdgi1w/a7EbAadWwTEJWNjrpiUkfg=="></script>
+  <script>
+    const pages = document.querySelectorAll('.app-page');
+    const navItems = document.querySelectorAll('.nav-item');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const statusRegion = document.getElementById('navigation-status');
+    let selectedCourse = 'cs301';
+
+    function closeSidebar() {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('open');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    function showPage(name, updateNav = true) {
+      pages.forEach(page => page.classList.toggle('active', page.id === 'page-' + name));
+      if (updateNav) {
+        navItems.forEach(item => item.classList.toggle('active', item.dataset.page === name));
+      }
+      closeSidebar();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    navItems.forEach(item => item.addEventListener('click', () => showPage(item.dataset.page)));
+
+    document.getElementById('mobile-toggle').addEventListener('click', () => {
+      sidebar.classList.add('open');
+      overlay.classList.add('open');
+      overlay.setAttribute('aria-hidden', 'false');
+    });
+    document.getElementById('mobile-close').addEventListener('click', closeSidebar);
+    overlay.addEventListener('click', closeSidebar);
+
+    function resetCourseTab() {
+      document.querySelectorAll('.course-tab').forEach(tab => {
+        const active = tab.dataset.panel === 'attendance';
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', String(active));
+      });
+      document.querySelectorAll('.course-panel').forEach(panel => {
+        panel.classList.toggle('active', panel.id === 'panel-attendance');
+      });
+    }
+
+    function openCourse(courseId) {
+      selectedCourse = courseId;
+      document.querySelectorAll('.workspace-course').forEach(block => {
+        block.classList.toggle('active', block.dataset.workspaceCourse === selectedCourse);
+      });
+      resetCourseTab();
+      showPage('course-detail', false);
+      navItems.forEach(item => item.classList.toggle('active', item.dataset.page === 'courses'));
+      statusRegion.textContent = 'Course workspace opened.';
+      document.getElementById('back-to-courses').focus();
+    }
+
+    document.querySelectorAll('.course-card').forEach(card => {
+      const activate = () => {
+        card.classList.add('is-pressed');
+        window.setTimeout(() => {
+          card.classList.remove('is-pressed');
+          openCourse(card.dataset.course);
+        }, 110);
+      };
+      card.addEventListener('click', activate);
+      card.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          activate();
+        }
+      });
+    });
+
+    document.getElementById('back-to-courses').addEventListener('click', () => {
+      showPage('courses');
+      const target = document.querySelector('.course-card[data-course="' + selectedCourse + '"]');
+      if (target) target.focus();
+    });
+
+    document.querySelectorAll('.course-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.course-tab').forEach(other => {
+          const active = other === tab;
+          other.classList.toggle('active', active);
+          other.setAttribute('aria-selected', String(active));
+        });
+        document.querySelectorAll('.course-panel').forEach(panel => {
+          panel.classList.toggle('active', panel.id === 'panel-' + tab.dataset.panel);
+        });
+      });
+    });
+
+    // Custom dark dropdown logic
+    const dropdownBtn = document.getElementById('custom-dropdown-btn');
+    const dropdownMenu = document.getElementById('custom-dropdown-menu');
+    const dropdownSelectedText = document.getElementById('dropdown-selected-text');
+    const dropdownArrow = document.getElementById('dropdown-arrow');
+    const dropdownItems = document.querySelectorAll('.dropdown-item');
+
+    function toggleDropdown() {
+      const isExpanded = dropdownBtn.getAttribute('aria-expanded') === 'true';
+      dropdownBtn.setAttribute('aria-expanded', !isExpanded);
+      dropdownMenu.classList.toggle('hidden');
+      dropdownArrow.classList.toggle('rotate-180');
+    }
+
+    dropdownBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleDropdown();
+    });
+
+    dropdownItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const value = item.dataset.value;
+        const text = item.textContent;
+
+        // Update selected state visually
+        dropdownSelectedText.textContent = text;
+        dropdownItems.forEach(i => {
+          const isSelected = i === item;
+          i.setAttribute('aria-selected', String(isSelected));
+          if (isSelected) {
+            i.className = "dropdown-item w-full text-left px-3 py-2 rounded-lg text-sm text-teal-400 font-semibold hover:bg-slate-800 transition-colors";
+          } else {
+            i.className = "dropdown-item w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors";
+          }
+        });
+
+        // Toggle visibility of rows
+        document.querySelectorAll('#all-grade-rows tr').forEach(row => {
+          if (value === 'all' || row.dataset.course === value) {
+            row.classList.remove('hidden');
+          } else {
+            row.classList.add('hidden');
+          }
+        });
+
+        // Close dropdown
+        dropdownBtn.setAttribute('aria-expanded', 'false');
+        dropdownMenu.classList.add('hidden');
+        dropdownArrow.classList.remove('rotate-180');
+      });
+    });
+
+    // Close on click outside
+    document.addEventListener('click', () => {
+      dropdownBtn.setAttribute('aria-expanded', 'false');
+      dropdownMenu.classList.add('hidden');
+      dropdownArrow.classList.remove('rotate-180');
+    });
+
+    // Interactive Visualization Navigation and Captions
+    const vizButtons = {
+      distribution: document.getElementById('viz-btn-distribution'),
+      trend: document.getElementById('viz-btn-trend'),
+      difficulty: document.getElementById('viz-btn-difficulty'),
+      radar: document.getElementById('viz-btn-radar')
+    };
+
+    const vizCharts = {
+      distribution: document.getElementById('viz-chart-distribution'),
+      trend: document.getElementById('viz-chart-trend'),
+      difficulty: document.getElementById('viz-chart-difficulty'),
+      radar: document.getElementById('viz-chart-radar')
+    };
+
+    const vizCaptions = {
+      distribution: "Distribution of calculated course-level performance scores (0% - 100%).",
+      trend: "Comparison of average final grade trends across primary courses.",
+      difficulty: "Comparing computed class average score percentage for each course assignment.",
+      radar: "Radar visualization of aggregate classroom metrics (GPA, attendance, and pass rate)."
+    };
+
+    const vizCaptionText = document.getElementById('viz-chart-caption');
+
+    Object.keys(vizButtons).forEach(key => {
+      if (vizButtons[key]) {
+        vizButtons[key].addEventListener('click', () => {
+          // Reset all navigation cards to inactive
+          Object.keys(vizButtons).forEach(k => {
+            vizButtons[k].classList.remove('active');
+            vizButtons[k].setAttribute('aria-pressed', 'false');
+            vizCharts[k].classList.add('hidden');
+            vizCharts[k].classList.remove('flex');
+          });
+
+          // Set active states
+          vizButtons[key].classList.add('active');
+          vizButtons[key].setAttribute('aria-pressed', 'true');
+          vizCharts[key].classList.remove('hidden');
+          vizCharts[key].classList.add('flex');
+
+          // Update caption
+          if (vizCaptionText) {
+            vizCaptionText.textContent = vizCaptions[key];
+          }
+        });
+      }
+    });
+
+    // Profile modal functionality
+    const editProfileBtn = document.getElementById('edit-profile-btn');
+    const updateSettingsBtn = document.getElementById('update-settings-btn');
+    const modalEditProfile = document.getElementById('modal-edit-profile');
+    const modalUpdateSettings = document.getElementById('modal-update-settings');
+    const modalEditClose = document.getElementById('modal-edit-close');
+    const modalSettingsClose = document.getElementById('modal-settings-close');
+    const editCancelBtn = document.getElementById('edit-cancel-btn');
+    const settingsCancelBtn = document.getElementById('settings-cancel-btn');
+    const formEditProfile = document.getElementById('form-edit-profile');
+    const formUpdateSettings = document.getElementById('form-update-settings');
+
+    // Mini profile functionality
+    const miniProfileBtn = document.getElementById('mini-profile-btn');
+    const miniProfileMenu = document.getElementById('mini-profile-menu');
+    const miniName = document.getElementById('mini-name');
+    const miniAvatar = document.getElementById('mini-avatar');
+    const miniPopupName = document.getElementById('mini-popup-name');
+    const miniPopupEmail = document.getElementById('mini-popup-email');
+    const signoutBtn = document.getElementById('signout-btn');
+
+    function updateMiniProfile() {
+      const profileName = document.querySelector('[data-template-id="profile-name"]')?.textContent || 'Nguyen Van A';
+      const email = document.querySelector('[data-template-id="account-email-value"]')?.textContent || 'nguyen.van.a@university.edu';
+      const initials = profileName.split(' ').map(n => n[0]).join('').toUpperCase();
+      
+      miniName.textContent = profileName;
+      miniPopupName.textContent = profileName;
+      miniPopupEmail.textContent = email;
+      miniAvatar.textContent = initials;
+    }
+
+    miniProfileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      miniProfileMenu.classList.toggle('hidden');
+    });
+
+    signoutBtn.addEventListener('click', () => {
+      miniProfileMenu.classList.add('hidden');
+      showToast('Signed out successfully');
+    });
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #0f766e;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        z-index: 1000;
+        animation: slideUp 0.3s ease;
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!miniProfileBtn.contains(e.target) && !miniProfileMenu.contains(e.target)) {
+        miniProfileMenu.classList.add('hidden');
+      }
+    });
+
+    // Edit Profile modal handlers
+    editProfileBtn.addEventListener('click', () => {
+      document.getElementById('edit-name-input').value = document.querySelector('[data-template-id="profile-name"]').textContent;
+      document.getElementById('edit-year-input').value = document.querySelector('[data-template-id="profile-stat-office-val"]').textContent;
+      document.getElementById('edit-department-input').value = document.querySelector('[data-template-id="profile-badge-1"]').textContent;
+      modalEditProfile.classList.remove('hidden');
+    });
+
+    modalEditClose.addEventListener('click', () => modalEditProfile.classList.add('hidden'));
+    editCancelBtn.addEventListener('click', () => modalEditProfile.classList.add('hidden'));
+    modalEditProfile.addEventListener('click', (e) => {
+      if (e.target === modalEditProfile) modalEditProfile.classList.add('hidden');
+    });
+
+    formEditProfile.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('edit-name-input').value;
+      const year = document.getElementById('edit-year-input').value;
+      const department = document.getElementById('edit-department-input').value;
+      const avatarFile = document.getElementById('edit-avatar-input').files[0];
+      
+      if (name) {
+        document.querySelector('[data-template-id="profile-name"]').textContent = name;
+        // Update hero title with student name
+        document.querySelector('[data-template-id="hero-title"]').textContent = name + "'s Dashboard";
+      }
+      if (year) document.querySelector('[data-template-id="profile-stat-office-val"]').textContent = year;
+      if (department) document.querySelector('[data-template-id="profile-badge-1"]').textContent = department;
+      
+      // Handle avatar image update
+      if (avatarFile) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const avatarContainer = document.querySelector('.w-16.h-16.rounded-full.bg-teal-100');
+          if (avatarContainer) {
+            avatarContainer.innerHTML = '<img src="' + event.target.result + '" class="w-full h-full object-cover rounded-full">';
+          }
+        };
+        reader.readAsDataURL(avatarFile);
+      }
+      
+      updateMiniProfile();
+      modalEditProfile.classList.add('hidden');
+    });
+
+    // Update Settings modal handlers
+    updateSettingsBtn.addEventListener('click', () => {
+      document.getElementById('settings-email-input').value = document.querySelector('[data-template-id="account-email-value"]').textContent;
+      document.getElementById('settings-password-input').value = '';
+      modalUpdateSettings.classList.remove('hidden');
+    });
+
+    modalSettingsClose.addEventListener('click', () => modalUpdateSettings.classList.add('hidden'));
+    settingsCancelBtn.addEventListener('click', () => modalUpdateSettings.classList.add('hidden'));
+    modalUpdateSettings.addEventListener('click', (e) => {
+      if (e.target === modalUpdateSettings) modalUpdateSettings.classList.add('hidden');
+    });
+
+    formUpdateSettings.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('settings-email-input').value;
+      const password = document.getElementById('settings-password-input').value;
+      
+      if (email) document.querySelector('[data-template-id="account-email-value"]').textContent = email;
+      
+      modalUpdateSettings.classList.add('hidden');
+    });
+
+    lucide.createIcons();
+
+    // Compute dynamic statistics from existing data
+    function computeStatistics() {
+      // Count unique courses
+      const courses = new Set();
+      document.querySelectorAll('[data-course]').forEach(el => {
+        const courseId = el.dataset.course;
+        if (courseId) courses.add(courseId);
+      });
+      const numCourses = courses.size || 3; // Default to 3 if no courses found
+
+      // Compute average GPA from current course grades
+      const courseGrades = [88, 80.3, 95]; // CS301, DS201, SE401 current grades as percentages
+      const avgPercentage = courseGrades.reduce((a, b) => a + b, 0) / courseGrades.length;
+      const avgGPA = (avgPercentage / 100 * 4.0).toFixed(2);
+
+      // Count at-risk students (those with grades below 80%)
+      const csRisk = 88 < 80 ? 1 : 0; // CS301 current: 88%
+      const dsRisk = 80.3 < 80 ? 1 : 0; // DS201 current: 80.3%
+      const seRisk = 95 < 80 ? 1 : 0; // SE401 current: 95%
+      const atRiskCount = csRisk + dsRisk + seRisk;
+
+      // Update DOM
+      const statCoursesVal = document.querySelector('[data-template-id="stat-courses-val"]');
+      if (statCoursesVal) statCoursesVal.textContent = numCourses;
+
+      const statGpaVal = document.querySelector('[data-template-id="stat-gpa-val"]');
+      if (statGpaVal) statGpaVal.textContent = avgGPA;
+
+      const statRiskVal = document.querySelector('[data-template-id="stat-risk-val"]');
+      if (statRiskVal) statRiskVal.textContent = atRiskCount;
+    }
+
+    // Compute dynamic statistics from existing data
+    function computeStatistics() {
+      // Count unique courses
+      const courses = new Set();
+      document.querySelectorAll('[data-course]').forEach(el => {
+        const courseId = el.dataset.course;
+        if (courseId) courses.add(courseId);
+      });
+      const numCourses = courses.size || 3; // Default to 3 if no courses found
+
+      // Compute average GPA from current course grades
+      const courseGrades = [88, 80.3, 95]; // CS301, DS201, SE401 current grades as percentages
+      const avgPercentage = courseGrades.reduce((a, b) => a + b, 0) / courseGrades.length;
+      const avgGPA = (avgPercentage / 100 * 4.0).toFixed(2);
+
+      // Count at-risk students (those with grades below 80%)
+      const csRisk = 88 < 80 ? 1 : 0; // CS301 current: 88%
+      const dsRisk = 80.3 < 80 ? 1 : 0; // DS201 current: 80.3%
+      const seRisk = 95 < 80 ? 1 : 0; // SE401 current: 95%
+      const atRiskCount = csRisk + dsRisk + seRisk;
+
+      // Update DOM
+      const statCoursesVal = document.querySelector('[data-template-id="stat-courses-val"]');
+      if (statCoursesVal) statCoursesVal.textContent = numCourses;
+
+      const statGpaVal = document.querySelector('[data-template-id="stat-gpa-val"]');
+      if (statGpaVal) statGpaVal.textContent = avgGPA;
+
+      const statRiskVal = document.querySelector('[data-template-id="stat-risk-val"]');
+      if (statRiskVal) statRiskVal.textContent = atRiskCount;
+    }
+
+    // Course data for export feature
+    const courseData = {
+      cs301: {
+        name: 'CS301 — Algorithms',
+        info: '42 enrolled · Weighted grading · Dr. Nguyen',
+        current: '88%',
+        instructor: 'Dr. Nguyen',
+        enrolled: '42',
+        grades: [
+          { assessment: 'Midterm Exam', score: '88%', weight: '30%', status: 'Graded' },
+          { assessment: 'Algorithms Project', score: '92%', weight: '20%', status: 'Graded' },
+          { assessment: 'Final Exam', score: '—', weight: '50%', status: 'Pending' }
+        ],
+        attendance: { present: '22', absent: '2', rate: '92%' }
+      },
+      ds201: {
+        name: 'DS201 — Data Analysis',
+        info: '38 enrolled · Curved grading · Prof. Tran',
+        current: '80.3%',
+        instructor: 'Prof. Tran',
+        enrolled: '38',
+        grades: [
+          { assessment: 'Data Analysis Report', score: '78%', weight: '40%', status: 'Graded' },
+          { assessment: 'Quiz 1', score: '85%', weight: '20%', status: 'Graded' },
+          { assessment: 'Final Presentation', score: '—', weight: '40%', status: 'Pending' }
+        ],
+        attendance: { present: '19', absent: '3', rate: '86%' }
+      },
+      se401: {
+        name: 'SE401 — Software Engineering',
+        info: '35 enrolled · Pass/Fail · Dr. Le',
+        current: '95%',
+        instructor: 'Dr. Le',
+        enrolled: '35',
+        grades: [
+          { assessment: 'Requirement Specification', score: '95%', weight: '25%', status: 'Graded' },
+          { assessment: 'Capstone Submission', score: '—', weight: '75%', status: 'Pending' }
+        ],
+        attendance: { present: '23', absent: '1', rate: '96%' }
+      }
+    };
+
+    // Export page functionality
+    const exportSelect = document.getElementById('export-course-select');
+    const exportInfoCard = document.querySelector('[data-template-id="export-info-card"]');
+    const exportGradesBody = document.getElementById('export-grades-body');
+    const exportJsonBtn = document.getElementById('export-json-btn');
+
+    function updateExportDisplay(courseId) {
+      const data = courseData[courseId];
+      if (!data) return;
+
+      // Update course info
+      document.querySelector('[data-template-id="export-course-name"]').textContent = data.name;
+      document.querySelector('[data-template-id="export-course-info"]').textContent = data.info;
+      document.querySelector('[data-template-id="export-stat-current"]').textContent = data.current;
+      document.querySelector('[data-template-id="export-stat-instructor"]').textContent = data.instructor;
+      document.querySelector('[data-template-id="export-stat-enrolled"]').textContent = data.enrolled;
+
+      // Update grades table
+      exportGradesBody.innerHTML = '';
+      data.grades.forEach(grade => {
+        const row = document.createElement('tr');
+        row.className = 'border-t';
+        row.innerHTML = `
+          <td class="p-3 font-medium text-slate-700">${grade.assessment}</td>
+          <td class="p-3 font-bold ${grade.score === '—' ? 'text-slate-400' : 'text-teal-600'}">${grade.score}</td>
+          <td class="p-3 text-slate-500">${grade.weight}</td>
+          <td class="p-3">
+            <span class="inline-block px-2 py-1 rounded-md text-xs font-semibold ${
+              grade.status === 'Graded' 
+                ? 'bg-emerald-100 text-emerald-700' 
+                : 'bg-amber-100 text-amber-700'
+            }">
+              ${grade.status}
+            </span>
+          </td>
+        `;
+        exportGradesBody.appendChild(row);
+      });
+
+      // Update attendance
+      document.querySelector('[data-template-id="export-attendance-present"]').textContent = data.attendance.present;
+      document.querySelector('[data-template-id="export-attendance-absent"]').textContent = data.attendance.absent;
+      document.querySelector('[data-template-id="export-attendance-rate"]').textContent = data.attendance.rate;
+    }
+
+    exportSelect.addEventListener('change', (e) => {
+      updateExportDisplay(e.target.value);
+    });
+
+    exportJsonBtn.addEventListener('click', () => {
+      const courseId = exportSelect.value;
+      const data = courseData[courseId];
+      const studentName = document.querySelector('[data-template-id="profile-name"]')?.textContent || 'Nguyen Van A';
+      const studentId = document.querySelector('[data-template-id="cs301-student-id"]')?.textContent || 'STU001';
+
+      const exportData = {
+        student: {
+          name: studentName,
+          id: studentId,
+          exportDate: new Date().toISOString()
+        },
+        course: {
+          id: courseId,
+          name: data.name,
+          info: data.info,
+          currentGrade: data.current,
+          instructor: data.instructor,
+          enrolled: data.enrolled
+        },
+        grades: data.grades,
+        attendance: data.attendance
+      };
+
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${courseId}-report-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast('Report exported successfully!');
+    });
+
+    // Initialize export display on first load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        computeStatistics();
+        updateMiniProfile();
+        updateExportDisplay('cs301');
+      });
+    } else {
+      computeStatistics();
+      updateMiniProfile();
+      updateExportDisplay('cs301');
+    }
+  </script>
+ 
+</body></html>
