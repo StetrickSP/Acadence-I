@@ -17,6 +17,8 @@ from src.db.session import get_db
 from src.db.models import CourseRow, StudentRow
 from src.services.analytics_service import PandasAnalyticsService
 from src.auth.clerk import require_auth, get_student_from_request
+from src.auth.ownership import get_owned_course
+from src.db.models import EnrollmentRow, StudentRow
 
 router = APIRouter()
 
@@ -41,13 +43,32 @@ def _png_response(fig: plt.Figure) -> Response:
 def grade_distribution_chart(course_id: int, request: Request, db: Session = Depends(get_db)):
     """Return a Matplotlib bar chart PNG of grade distribution for a course.
 
-    Requires a valid Clerk session (student or admin). Any authenticated user
-    may view a course's distribution chart.
+    Access policy:
+      - Instructor who owns the course (or legacy unowned course): allowed.
+      - Student enrolled in the course: allowed.
+      - Anyone else: 403.
     """
-    require_auth(request)  # raises 401 if not signed in
+    clerk_user_id = require_auth(request)
+
+    # Fetch the course first (404 if missing)
     course = db.query(CourseRow).filter(CourseRow.id == course_id).first()
     if course is None:
         raise HTTPException(status_code=404, detail="Course not found")
+
+    # Instructor path: strict ownership (no NULL fallback)
+    if course.owner_clerk_id == clerk_user_id:
+        pass  # access granted — instructor owns this course
+    else:
+        # Student path: caller must be enrolled in the course
+        student = db.query(StudentRow).filter(StudentRow.clerk_user_id == clerk_user_id).first()
+        if student is None:
+            raise HTTPException(status_code=403, detail="Not your course")
+        enrolled = db.query(EnrollmentRow).filter(
+            EnrollmentRow.student_id == student.id,
+            EnrollmentRow.course_id == course_id,
+        ).first()
+        if enrolled is None:
+            raise HTTPException(status_code=403, detail="Not enrolled in this course")
 
     svc = PandasAnalyticsService(db)
     data = svc.grade_distribution(course_id=course_id)
@@ -275,12 +296,19 @@ def course_difficulty_chart(
     Requires a valid Clerk session. Any authenticated user may view this chart.
     Optional ?course_ids=1,2,3 to filter to specific courses.
     """
-    require_auth(request)
+    clerk_user_id = require_auth(request)
+    allowed = {
+        r.id for r in db.query(CourseRow.id).filter(
+            CourseRow.owner_clerk_id == clerk_user_id
+        ).all()
+    }
 
     svc = PandasAnalyticsService(db)
     performance = svc.course_performance()
+    # Scope to caller-owned courses first
+    performance = [p for p in performance if p.get("course_id") in allowed]
 
-    # Filter by course IDs if provided
+    # Further filter by explicit course IDs if provided
     if course_ids:
         try:
             id_set = {int(x.strip()) for x in course_ids.split(",") if x.strip()}

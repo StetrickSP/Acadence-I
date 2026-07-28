@@ -37,6 +37,7 @@ class CourseRow(Base):
     instructor = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     grading_scheme = Column("grading_scheme", Text, nullable=True, default="weighted")
+    owner_clerk_id = Column("owner_clerk_id", Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
 
     enrollments = relationship("EnrollmentRow", back_populates="course", passive_deletes=True)

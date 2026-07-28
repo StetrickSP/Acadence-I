@@ -1,7 +1,7 @@
 """Course routes — full CRUD + students + stats."""
 import math
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from src.db.models import CourseRow, EnrollmentRow, StudentRow, AssignmentRow, G
 from src.domain.grade_utils import to_percent
 from src.domain.grade_book import AssignmentScore
 from src.domain.grade_book_factory import GradeBookFactory
+from src.auth.clerk import require_auth
 
 router = APIRouter()
 
@@ -64,11 +65,13 @@ class UpdateCourseBody(BaseModel):
 
 @router.get("/courses")
 def list_courses(
+    request: Request,
     semester: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
-    q = db.query(CourseRow)
+    clerk_user_id = require_auth(request)
+    q = db.query(CourseRow).filter(CourseRow.owner_clerk_id == clerk_user_id)
     if semester:
         q = q.filter(CourseRow.semester == semester)
     if search:
@@ -82,12 +85,14 @@ def list_courses(
 
 
 @router.post("/courses", status_code=201)
-def create_course(body: CreateCourseBody, db: Session = Depends(get_db)):
+def create_course(request: Request, body: CreateCourseBody, db: Session = Depends(get_db)):
+    clerk_user_id = require_auth(request)
     row = CourseRow(
         code=body.code, name=body.name, credits=body.credits,
         semester=body.semester, instructor=body.instructor,
         description=body.description,
         grading_scheme=body.grading_scheme or "weighted",
+        owner_clerk_id=clerk_user_id,
     )
     db.add(row)
     db.commit()
@@ -96,11 +101,27 @@ def create_course(body: CreateCourseBody, db: Session = Depends(get_db)):
 
 
 @router.get("/courses/full")
-def get_courses_full(db: Session = Depends(get_db)):
-    """Return all courses with students, assignments, grades, and sessions in one shot."""
+def get_courses_full(request: Request, db: Session = Depends(get_db)):
+    """Return the signed-in instructor's courses with students, assignments, grades, and sessions."""
     from src.db.models import SessionRow, AttendanceRecordRow
 
-    courses = db.query(CourseRow).order_by(CourseRow.name).all()
+    clerk_user_id = require_auth(request)
+
+    # Claim-on-first-load: atomically assign any unowned legacy courses to the
+    # first instructor who loads the dashboard.  After this UPDATE completes,
+    # all courses in the DB have an owner and strict per-instructor isolation
+    # applies everywhere else without any IS NULL fallback.
+    db.query(CourseRow).filter(CourseRow.owner_clerk_id == None).update(  # noqa: E711
+        {"owner_clerk_id": clerk_user_id}, synchronize_session=False
+    )
+    db.commit()
+
+    courses = (
+        db.query(CourseRow)
+        .filter(CourseRow.owner_clerk_id == clerk_user_id)
+        .order_by(CourseRow.name)
+        .all()
+    )
     result = []
     for c in courses:
         enrolled = (
@@ -160,19 +181,19 @@ def get_courses_full(db: Session = Depends(get_db)):
 
 
 @router.get("/courses/{course_id}")
-def get_course(course_id: int, db: Session = Depends(get_db)):
-    c = db.query(CourseRow).filter(CourseRow.id == course_id).first()
-    if not c:
-        raise HTTPException(status_code=404, detail="Course not found")
+def get_course(request: Request, course_id: int, db: Session = Depends(get_db)):
+    from src.auth.ownership import get_owned_course
+    clerk_user_id = require_auth(request)
+    c = get_owned_course(db, course_id, clerk_user_id)
     cnt = db.query(EnrollmentRow).filter(EnrollmentRow.course_id == course_id).count()
     return _fmt_course(c, cnt, _avg_grade(db, course_id))
 
 
 @router.put("/courses/{course_id}")
-def update_course(course_id: int, body: UpdateCourseBody, db: Session = Depends(get_db)):
-    c = db.query(CourseRow).filter(CourseRow.id == course_id).first()
-    if not c:
-        raise HTTPException(status_code=404, detail="Course not found")
+def update_course(request: Request, course_id: int, body: UpdateCourseBody, db: Session = Depends(get_db)):
+    from src.auth.ownership import get_owned_course
+    clerk_user_id = require_auth(request)
+    c = get_owned_course(db, course_id, clerk_user_id)
     if body.name is not None:
         c.name = body.name
     if body.credits is not None:
@@ -192,19 +213,20 @@ def update_course(course_id: int, body: UpdateCourseBody, db: Session = Depends(
 
 
 @router.delete("/courses/{course_id}", status_code=204)
-def delete_course(course_id: int, db: Session = Depends(get_db)):
-    c = db.query(CourseRow).filter(CourseRow.id == course_id).first()
-    if c:
-        db.delete(c)
-        db.commit()
+def delete_course(request: Request, course_id: int, db: Session = Depends(get_db)):
+    from src.auth.ownership import get_owned_course
+    clerk_user_id = require_auth(request)
+    c = get_owned_course(db, course_id, clerk_user_id)  # raises 404/403 if missing or not owner
+    db.delete(c)
+    db.commit()
 
 
 @router.get("/courses/{course_id}/computed-grades")
-def get_computed_grades(course_id: int, db: Session = Depends(get_db)):
+def get_computed_grades(request: Request, course_id: int, db: Session = Depends(get_db)):
     """Return each enrolled student's final grade computed through the course's GradeBook."""
-    c = db.query(CourseRow).filter(CourseRow.id == course_id).first()
-    if not c:
-        raise HTTPException(status_code=404, detail="Course not found")
+    from src.auth.ownership import get_owned_course
+    clerk_user_id = require_auth(request)
+    c = get_owned_course(db, course_id, clerk_user_id)
     scheme = c.grading_scheme or "weighted"
     gb = GradeBookFactory.create(scheme)
 
@@ -245,7 +267,10 @@ def get_computed_grades(course_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/courses/{course_id}/students")
-def get_course_students(course_id: int, db: Session = Depends(get_db)):
+def get_course_students(request: Request, course_id: int, db: Session = Depends(get_db)):
+    from src.auth.ownership import get_owned_course
+    clerk_user_id = require_auth(request)
+    get_owned_course(db, course_id, clerk_user_id)
     rows = (
         db.query(StudentRow)
         .join(EnrollmentRow, EnrollmentRow.student_id == StudentRow.id)
@@ -263,7 +288,10 @@ def get_course_students(course_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/courses/{course_id}/stats")
-def get_course_stats(course_id: int, db: Session = Depends(get_db)):
+def get_course_stats(request: Request, course_id: int, db: Session = Depends(get_db)):
+    from src.auth.ownership import get_owned_course
+    clerk_user_id = require_auth(request)
+    get_owned_course(db, course_id, clerk_user_id)
     student_count = db.query(EnrollmentRow).filter(EnrollmentRow.course_id == course_id).count()
     grade_data = (
         db.query(GradeRow, AssignmentRow)

@@ -1,12 +1,14 @@
-"""Grade routes — full CRUD."""
+"""Grade routes — full CRUD with per-instructor ownership checks."""
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.db.session import get_db
-from src.db.models import GradeRow, AssignmentRow, StudentRow
+from src.db.models import GradeRow, AssignmentRow, StudentRow, CourseRow
 from src.domain.grade_utils import to_percent, score_to_letter
+from src.auth.clerk import require_auth
+from src.auth.ownership import get_owned_course
 
 router = APIRouter()
 
@@ -28,6 +30,13 @@ def _fmt(g: GradeRow, asgn: Optional[AssignmentRow] = None, student_name=None):
     }
 
 
+def _get_assignment_or_404(db: Session, assignment_id: int) -> AssignmentRow:
+    a = db.query(AssignmentRow).filter(AssignmentRow.id == assignment_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return a
+
+
 class CreateGradeBody(BaseModel):
     student_id: int
     assignment_id: int
@@ -42,15 +51,19 @@ class UpdateGradeBody(BaseModel):
 
 @router.get("/grades")
 def list_grades(
+    request: Request,
     student_id: Optional[int] = Query(None),
     course_id: Optional[int] = Query(None),
     assignment_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
 ):
+    clerk_user_id = require_auth(request)
     q = (
         db.query(GradeRow, AssignmentRow, StudentRow.name)
         .outerjoin(AssignmentRow, GradeRow.assignment_id == AssignmentRow.id)
         .outerjoin(StudentRow, GradeRow.student_id == StudentRow.id)
+        .outerjoin(CourseRow, AssignmentRow.course_id == CourseRow.id)
+        .filter(CourseRow.owner_clerk_id == clerk_user_id)
     )
     if student_id is not None:
         q = q.filter(GradeRow.student_id == student_id)
@@ -63,7 +76,10 @@ def list_grades(
 
 
 @router.post("/grades", status_code=201)
-def create_grade(body: CreateGradeBody, db: Session = Depends(get_db)):
+def create_grade(request: Request, body: CreateGradeBody, db: Session = Depends(get_db)):
+    clerk_user_id = require_auth(request)
+    asgn = _get_assignment_or_404(db, body.assignment_id)
+    get_owned_course(db, asgn.course_id, clerk_user_id)
     row = GradeRow(
         student_id=body.student_id,
         assignment_id=body.assignment_id,
@@ -73,13 +89,15 @@ def create_grade(body: CreateGradeBody, db: Session = Depends(get_db)):
     db.add(row)
     db.commit()
     db.refresh(row)
-    asgn = db.query(AssignmentRow).filter(AssignmentRow.id == body.assignment_id).first()
     return _fmt(row, asgn)
 
 
 @router.put("/grades/upsert")
-def upsert_grade(body: CreateGradeBody, db: Session = Depends(get_db)):
+def upsert_grade(request: Request, body: CreateGradeBody, db: Session = Depends(get_db)):
     """Create or update a grade for a student+assignment pair."""
+    clerk_user_id = require_auth(request)
+    asgn = _get_assignment_or_404(db, body.assignment_id)
+    get_owned_course(db, asgn.course_id, clerk_user_id)
     existing = db.query(GradeRow).filter(
         GradeRow.student_id == body.student_id,
         GradeRow.assignment_id == body.assignment_id,
@@ -90,40 +108,42 @@ def upsert_grade(body: CreateGradeBody, db: Session = Depends(get_db)):
             existing.feedback = body.feedback
         db.commit()
         db.refresh(existing)
-        asgn = db.query(AssignmentRow).filter(AssignmentRow.id == existing.assignment_id).first()
         return _fmt(existing, asgn)
-    else:
-        row = GradeRow(
-            student_id=body.student_id,
-            assignment_id=body.assignment_id,
-            score=str(body.score),
-            feedback=body.feedback,
-        )
-        db.add(row)
-        db.commit()
-        db.refresh(row)
-        asgn = db.query(AssignmentRow).filter(AssignmentRow.id == body.assignment_id).first()
-        return _fmt(row, asgn)
+    row = GradeRow(
+        student_id=body.student_id,
+        assignment_id=body.assignment_id,
+        score=str(body.score),
+        feedback=body.feedback,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _fmt(row, asgn)
 
 
 @router.put("/grades/{grade_id}")
-def update_grade(grade_id: int, body: UpdateGradeBody, db: Session = Depends(get_db)):
+def update_grade(request: Request, grade_id: int, body: UpdateGradeBody, db: Session = Depends(get_db)):
+    clerk_user_id = require_auth(request)
     g = db.query(GradeRow).filter(GradeRow.id == grade_id).first()
     if not g:
         raise HTTPException(status_code=404, detail="Grade not found")
+    asgn = _get_assignment_or_404(db, g.assignment_id)
+    get_owned_course(db, asgn.course_id, clerk_user_id)
     if body.score is not None:
         g.score = str(body.score)
     if body.feedback is not None:
         g.feedback = body.feedback
     db.commit()
     db.refresh(g)
-    asgn = db.query(AssignmentRow).filter(AssignmentRow.id == g.assignment_id).first()
     return _fmt(g, asgn)
 
 
 @router.delete("/grades/{grade_id}", status_code=204)
-def delete_grade(grade_id: int, db: Session = Depends(get_db)):
+def delete_grade(request: Request, grade_id: int, db: Session = Depends(get_db)):
+    clerk_user_id = require_auth(request)
     g = db.query(GradeRow).filter(GradeRow.id == grade_id).first()
     if g:
+        asgn = _get_assignment_or_404(db, g.assignment_id)
+        get_owned_course(db, asgn.course_id, clerk_user_id)
         db.delete(g)
         db.commit()

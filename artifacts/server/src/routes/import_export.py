@@ -7,12 +7,14 @@ POST /api/import/batch      — upload multiple CSVs concurrently
 """
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 import io
 
 from src.db.session import get_db, SessionLocal
 from src.services.file_io import FileIOService
+from src.auth.clerk import require_auth
+from src.auth.ownership import get_owned_course
 from sqlalchemy.orm import Session
 
 router = APIRouter()
@@ -25,15 +27,15 @@ _svc = FileIOService()
 
 @router.post("/import/grades")
 async def import_grades(
+    request: Request,
     file: UploadFile = File(..., description="CSV file with columns: student_id, assignment_name, score[, type]"),
     course_id: int = Form(..., description="Course ID these grades belong to"),
     db: Session = Depends(get_db),
 ):
-    """Import grades from a CSV file into a specific course.
+    """Import grades from a CSV file into a specific course."""
+    clerk_user_id = require_auth(request)
+    get_owned_course(db, course_id, clerk_user_id)
 
-    Rows are upserted: existing (student, assignment) entries are updated
-    rather than duplicated.  Invalid rows are reported in the `errors` list.
-    """
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
@@ -48,11 +50,24 @@ async def import_grades(
 
 @router.get("/export/grades")
 def export_grades_csv(
+    request: Request,
     course_id: Optional[int] = Query(None, description="Filter by course ID (omit for all courses)"),
     db: Session = Depends(get_db),
 ):
     """Stream all grade data as a downloadable CSV file."""
-    csv_text = _svc.export_grades_csv(course_id, db)
+    clerk_user_id = require_auth(request)
+    if course_id is not None:
+        get_owned_course(db, course_id, clerk_user_id)
+        csv_text = _svc.export_grades_csv(course_id, db)
+    else:
+        # No course_id → scope export to caller-owned (and legacy unowned) courses only
+        from src.db.models import CourseRow as _CR
+        allowed = {
+            r.id for r in db.query(_CR.id)
+            .filter(_CR.owner_clerk_id == clerk_user_id)
+            .all()
+        }
+        csv_text = _svc.export_grades_csv(None, db, allowed_course_ids=allowed)
     filename = f"grades_course_{course_id}.csv" if course_id else "grades_all.csv"
 
     return StreamingResponse(
@@ -68,11 +83,14 @@ def export_grades_csv(
 
 @router.get("/export/report")
 def export_report_json(
+    request: Request,
     course_id: int = Query(..., description="Course to generate the report for"),
     db: Session = Depends(get_db),
 ):
-    """Return a structured JSON report: summary stats, grade distribution,
-    per-student breakdown with GPA impact, and at-risk list."""
+    """Return a structured JSON report for a course the caller owns."""
+    clerk_user_id = require_auth(request)
+    get_owned_course(db, course_id, clerk_user_id)
+
     report = _svc.export_report_json(course_id, db)
     if "error" in report:
         raise HTTPException(status_code=404, detail=report["error"])
@@ -85,17 +103,14 @@ def export_report_json(
 
 @router.post("/import/batch")
 async def batch_import_grades(
+    request: Request,
     files: List[UploadFile] = File(..., description="One or more CSV files (field name: files)"),
     course_ids: str = Form(..., description="Comma-separated course IDs matching each file in order"),
+    db: Session = Depends(get_db),
 ):
-    """Process multiple grade CSV files concurrently (ThreadPoolExecutor, max 4 workers).
+    """Process multiple grade CSV files concurrently (ThreadPoolExecutor, max 4 workers)."""
+    clerk_user_id = require_auth(request)
 
-    Each file is processed independently — a failure in one file does not
-    abort the others.  Returns a per-file result array.
-
-    `course_ids` is a comma-separated list matching the order of `files`.
-    Example: if you upload 3 files for courses 1, 2, 3 → course_ids="1,2,3"
-    """
     cid_list_str = [s.strip() for s in course_ids.split(",")]
 
     if len(cid_list_str) != len(files):
@@ -112,8 +127,11 @@ async def batch_import_grades(
     except ValueError:
         raise HTTPException(status_code=400, detail="course_ids must be integers")
 
+    # Verify ownership of each course before processing any files
+    for cid in parsed_ids:
+        get_owned_course(db, cid, clerk_user_id)
+
     # Read all file bytes before spawning threads (UploadFile is not thread-safe).
-    # Empty files become per-file fatal_error entries — they do NOT abort the whole batch.
     from src.services.file_io import BatchFileResult as _BFR
 
     all_items: list[tuple[int, str, bytes | None, int]] = []
@@ -122,7 +140,6 @@ async def batch_import_grades(
         filename = uf.filename or f"file_{idx}.csv"
         all_items.append((idx, filename, content if content else None, cid))
 
-    # Split into work items (non-empty) and immediate per-file fatal results (empty)
     work_items: list[tuple[int, str, bytes, int]] = []
     immediate_errors: list[_BFR] = []
     for idx, filename, content, cid in all_items:
@@ -135,6 +152,5 @@ async def batch_import_grades(
 
     processed = _svc.batch_import(work_items, db_factory=SessionLocal) if work_items else []
 
-    # Merge and sort by original submission index for stable, position-based ordering
     all_results = sorted([*immediate_errors, *processed], key=lambda r: r.pos_index)
     return [r.to_dict() for r in all_results]

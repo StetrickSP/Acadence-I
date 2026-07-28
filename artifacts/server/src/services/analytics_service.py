@@ -11,10 +11,17 @@ from src.domain.grade_utils import letter_to_points, risk_level, score_to_letter
 
 
 class PandasAnalyticsService:
-    """Loads grade data into DataFrames and exposes analytics methods."""
+    """Loads grade data into DataFrames and exposes analytics methods.
 
-    def __init__(self, db: Session) -> None:
+    Pass ``allowed_course_ids`` to restrict all analytics to a specific set of
+    courses (e.g. the courses owned by the signed-in instructor).  When None,
+    no scoping is applied — only use that in contexts where data isolation is
+    not required (e.g. student-facing endpoints that already scope by student).
+    """
+
+    def __init__(self, db: Session, allowed_course_ids: Optional[set] = None) -> None:
         self._db = db
+        self._allowed = allowed_course_ids  # None → no restriction
         self._df: Optional[pd.DataFrame] = None  # lazy-loaded master frame
 
     # ------------------------------------------------------------------
@@ -33,21 +40,27 @@ class PandasAnalyticsService:
             GradeRow.score,
         ).all()
 
-        assignments = self._db.query(
+        asgn_q = self._db.query(
             AssignmentRow.id.label("assignment_id"),
             AssignmentRow.course_id,
             AssignmentRow.name.label("assignment_name"),
             AssignmentRow.type.label("assignment_type"),
             AssignmentRow.max_score,
             AssignmentRow.weight,
-        ).all()
+        )
+        if self._allowed is not None:
+            asgn_q = asgn_q.filter(AssignmentRow.course_id.in_(self._allowed))
+        assignments = asgn_q.all()
 
-        enrollments = self._db.query(
+        enr_q = self._db.query(
             EnrollmentRow.id.label("enrollment_id"),
             EnrollmentRow.student_id,
             EnrollmentRow.course_id,
             EnrollmentRow.semester,
-        ).all()
+        )
+        if self._allowed is not None:
+            enr_q = enr_q.filter(EnrollmentRow.course_id.in_(self._allowed))
+        enrollments = enr_q.all()
 
         courses = self._db.query(
             CourseRow.id.label("course_id"),
@@ -111,11 +124,14 @@ class PandasAnalyticsService:
         return self._df
 
     def _enrollments_df(self) -> pd.DataFrame:
-        rows = self._db.query(
+        q = self._db.query(
             EnrollmentRow.student_id,
             EnrollmentRow.course_id,
             EnrollmentRow.semester,
-        ).all()
+        )
+        if self._allowed is not None:
+            q = q.filter(EnrollmentRow.course_id.in_(self._allowed))
+        rows = q.all()
         return pd.DataFrame(rows, columns=["student_id", "course_id", "semester"])
 
     # ------------------------------------------------------------------
@@ -214,6 +230,8 @@ class PandasAnalyticsService:
         )
         if course_id is not None:
             enr_q = enr_q.filter(EnrollmentRow.course_id == course_id)
+        elif self._allowed is not None:
+            enr_q = enr_q.filter(EnrollmentRow.course_id.in_(self._allowed))
         enrollments = enr_q.all()
 
         if not enrollments:
@@ -227,6 +245,8 @@ class PandasAnalyticsService:
         )
         if course_id is not None:
             asgn_q = asgn_q.filter(AssignmentRow.course_id == course_id)
+        elif self._allowed is not None:
+            asgn_q = asgn_q.filter(AssignmentRow.course_id.in_(self._allowed))
         assignments = asgn_q.all()
 
         if not assignments:
@@ -245,11 +265,11 @@ class PandasAnalyticsService:
             GradeRow.student_id,
             GradeRow.assignment_id,
             GradeRow.score,
-        )
+        ).join(AssignmentRow, GradeRow.assignment_id == AssignmentRow.id)
         if course_id is not None:
-            grade_q = grade_q.join(
-                AssignmentRow, GradeRow.assignment_id == AssignmentRow.id
-            ).filter(AssignmentRow.course_id == course_id)
+            grade_q = grade_q.filter(AssignmentRow.course_id == course_id)
+        elif self._allowed is not None:
+            grade_q = grade_q.filter(AssignmentRow.course_id.in_(self._allowed))
         grades = grade_q.all()
 
         df_grades = pd.DataFrame(grades, columns=["student_id", "assignment_id", "score"])
@@ -421,8 +441,10 @@ class PandasAnalyticsService:
             CourseRow.id.label("course_id"),
             CourseRow.name.label("course_name"),
             CourseRow.semester,
-        ).all()
-        courses_df = pd.DataFrame(courses_q, columns=["course_id", "course_name", "semester"])
+        )
+        if self._allowed is not None:
+            courses_q = courses_q.filter(CourseRow.id.in_(self._allowed))
+        courses_df = pd.DataFrame(courses_q.all(), columns=["course_id", "course_name", "semester"])
 
         enr_counts = (
             self._enrollments_df()
@@ -464,6 +486,8 @@ class PandasAnalyticsService:
         q = self._db.query(AssignmentRow)
         if course_id is not None:
             q = q.filter(AssignmentRow.course_id == course_id)
+        elif self._allowed is not None:
+            q = q.filter(AssignmentRow.course_id.in_(self._allowed))
         assignments = q.all()
 
         df = self._load_master_df()
@@ -485,6 +509,7 @@ class PandasAnalyticsService:
             result.append({
                 "assignment_id": asgn.id,
                 "assignment_name": asgn.name,
+                "course_id": asgn.course_id,
                 "type": asgn.type,
                 "submitted_count": submitted,
                 "total_enrolled": total,

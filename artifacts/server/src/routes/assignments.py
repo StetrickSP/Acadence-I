@@ -1,11 +1,13 @@
-"""Assignment routes — full CRUD."""
+"""Assignment routes — full CRUD with per-instructor ownership checks."""
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.db.session import get_db
-from src.db.models import AssignmentRow
+from src.db.models import AssignmentRow, CourseRow
+from src.auth.clerk import require_auth
+from src.auth.ownership import get_owned_course
 
 router = APIRouter()
 
@@ -45,11 +47,17 @@ class UpdateAssignmentBody(BaseModel):
 
 @router.get("/assignments")
 def list_assignments(
+    request: Request,
     course_id: Optional[int] = Query(None),
     type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
-    q = db.query(AssignmentRow)
+    clerk_user_id = require_auth(request)
+    q = (
+        db.query(AssignmentRow)
+        .join(CourseRow, AssignmentRow.course_id == CourseRow.id)
+        .filter(CourseRow.owner_clerk_id == clerk_user_id)
+    )
     if course_id is not None:
         q = q.filter(AssignmentRow.course_id == course_id)
     if type:
@@ -58,7 +66,9 @@ def list_assignments(
 
 
 @router.post("/assignments", status_code=201)
-def create_assignment(body: CreateAssignmentBody, db: Session = Depends(get_db)):
+def create_assignment(request: Request, body: CreateAssignmentBody, db: Session = Depends(get_db)):
+    clerk_user_id = require_auth(request)
+    get_owned_course(db, body.course_id, clerk_user_id)  # raises 403/404 if not owner
     row = AssignmentRow(
         course_id=body.course_id, name=body.name, type=body.type,
         max_score=str(body.max_score), weight=str(body.weight),
@@ -71,18 +81,22 @@ def create_assignment(body: CreateAssignmentBody, db: Session = Depends(get_db))
 
 
 @router.get("/assignments/{assignment_id}")
-def get_assignment(assignment_id: int, db: Session = Depends(get_db)):
+def get_assignment(request: Request, assignment_id: int, db: Session = Depends(get_db)):
+    clerk_user_id = require_auth(request)
     a = db.query(AssignmentRow).filter(AssignmentRow.id == assignment_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="Assignment not found")
+    get_owned_course(db, a.course_id, clerk_user_id)
     return _fmt(a)
 
 
 @router.put("/assignments/{assignment_id}")
-def update_assignment(assignment_id: int, body: UpdateAssignmentBody, db: Session = Depends(get_db)):
+def update_assignment(request: Request, assignment_id: int, body: UpdateAssignmentBody, db: Session = Depends(get_db)):
+    clerk_user_id = require_auth(request)
     a = db.query(AssignmentRow).filter(AssignmentRow.id == assignment_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="Assignment not found")
+    get_owned_course(db, a.course_id, clerk_user_id)
     if body.name is not None:
         a.name = body.name
     if body.type is not None:
@@ -101,8 +115,10 @@ def update_assignment(assignment_id: int, body: UpdateAssignmentBody, db: Sessio
 
 
 @router.delete("/assignments/{assignment_id}", status_code=204)
-def delete_assignment(assignment_id: int, db: Session = Depends(get_db)):
+def delete_assignment(request: Request, assignment_id: int, db: Session = Depends(get_db)):
+    clerk_user_id = require_auth(request)
     a = db.query(AssignmentRow).filter(AssignmentRow.id == assignment_id).first()
     if a:
+        get_owned_course(db, a.course_id, clerk_user_id)
         db.delete(a)
         db.commit()
