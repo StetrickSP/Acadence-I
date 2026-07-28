@@ -4,10 +4,13 @@ import {
   User, LogOut, Menu, X, ChevronLeft, AlertCircle, CheckCircle,
   Clock, XCircle, Star,
 } from 'lucide-react';
-import { useCustomAuth } from '@/context/AuthContext';
+import { useClerk } from '@clerk/react';
+import { useStudentIdentity } from '@/hooks/useStudentIdentity';
 import { useAcadence } from '@/context/AcadenceContext';
 import { gradeLetter } from '@/lib/acadence-utils';
 import { useLocation } from 'wouter';
+
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 // ── Local score helper (avoids needing full Student shape) ─────────────────────
 
@@ -1320,23 +1323,34 @@ function ProfilePage({
 // ── StudentPortal (root) ───────────────────────────────────────────────────────
 
 export default function StudentPortal() {
-  const { currentUser, logout } = useCustomAuth();
+  const { signOut } = useClerk();
+  const identity = useStudentIdentity();
   const { getStudentCourses } = useAcadence();
   const [, navigate] = useLocation();
   const [page, setPage] = useState<SpPage>('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  if (!currentUser || currentUser.role !== 'student') {
-    navigate('/login');
+  if (identity.status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
+          <p className="text-sm text-slate-500">Loading your profile…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (identity.status !== 'student') {
+    navigate('/');
     return null;
   }
 
-  const { studentId, name: studentName, email: studentEmail } = currentUser;
+  const { studentId, name: studentName, email: studentEmail } = identity.profile;
   const myCourses = getStudentCourses(studentId);
 
   const handleSignOut = () => {
-    logout();
-    navigate('/login');
+    signOut({ redirectUrl: basePath || '/' });
   };
 
   const openCourse = (courseId: string) =>

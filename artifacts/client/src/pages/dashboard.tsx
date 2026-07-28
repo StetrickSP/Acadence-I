@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useCustomAuth } from '@/context/AuthContext';
+import { useUser, useClerk } from '@clerk/react';
 import {
   Home, User, Menu, X, ChevronLeft, ChevronRight,
   LogOut, Sun, Moon, GraduationCap,
@@ -9,6 +9,8 @@ import { HomeView } from '@/components/acadence/HomeView';
 import { CourseView } from '@/components/acadence/CourseView';
 import { ProfileView } from '@/components/acadence/ProfileView';
 import { getInitials, type AppView } from '@/lib/acadence-utils';
+
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
@@ -180,7 +182,8 @@ function Sidebar({
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { currentUser, logout } = useCustomAuth();
+  const { user } = useUser();
+  const { signOut } = useClerk();
   const [, navigate] = useLocation();
 
   const [currentView, setCurrentView] = useState<AppView>('home');
@@ -189,10 +192,15 @@ export default function Dashboard() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
-  // Auth-derived user info
-  const displayName = (currentUser?.role === 'teacher' ? currentUser.name : undefined) || 'Faculty User';
-  const displayEmail = currentUser?.email || 'faculty@university.edu';
+  // Clerk user info
+  const displayName =
+    user?.fullName ||
+    user?.firstName ||
+    user?.primaryEmailAddress?.emailAddress?.split('@')[0] ||
+    'Faculty User';
+  const displayEmail = user?.primaryEmailAddress?.emailAddress || 'faculty@university.edu';
   const displayInitials = getInitials(displayName);
+  const avatarImg = user?.imageUrl || null;
 
   // Sync dark mode to body class (as the Canva HTML prototype does)
   useEffect(() => {
@@ -207,62 +215,61 @@ export default function Dashboard() {
   };
 
   const handleSignOut = () => {
-    logout();
-    navigate('/login');
+    signOut({ redirectUrl: basePath || '/' });
   };
 
   return (
-      <div className={`w-full min-h-screen flex relative bg-slate-50 ${darkMode ? 'dark-mode' : ''}`}>
-        {/* Mobile hamburger — shown only on small screens */}
-        <button
-          type="button"
-          className="md:hidden fixed top-4 left-4 z-[70] p-2 rounded-xl bg-slate-900 text-white shadow-lg"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open navigation"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+    <div className={`w-full min-h-screen flex relative bg-slate-50 ${darkMode ? 'dark-mode' : ''}`}>
+      {/* Mobile hamburger — shown only on small screens */}
+      <button
+        type="button"
+        className="md:hidden fixed top-4 left-4 z-[70] p-2 rounded-xl bg-slate-900 text-white shadow-lg"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
 
-        {/* Sidebar */}
-        <Sidebar
-          currentView={currentView}
-          setCurrentView={(v) => { setCurrentView(v); }}
-          collapsed={sidebarCollapsed}
-          setCollapsed={setSidebarCollapsed}
-          mobileOpen={mobileOpen}
-          setMobileOpen={setMobileOpen}
-          darkMode={darkMode}
-          setDarkMode={setDarkMode}
-          displayName={displayName}
-          displayEmail={displayEmail}
-          displayInitials={displayInitials}
-          avatarImg={null}
-          onSignOut={handleSignOut}
-        />
+      {/* Sidebar */}
+      <Sidebar
+        currentView={currentView}
+        setCurrentView={(v) => { setCurrentView(v); }}
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+        displayName={displayName}
+        displayEmail={displayEmail}
+        displayInitials={displayInitials}
+        avatarImg={avatarImg}
+        onSignOut={handleSignOut}
+      />
 
-        {/* Main content */}
-        <main
-          className={`flex-1 min-w-0 transition-all duration-300 ease-in-out`}
-          style={{ paddingLeft: 0 }}
-        >
-          <div className="w-full max-w-7xl mx-auto px-4 py-6 md:px-8 md:py-8 pt-16 md:pt-8">
-            {currentView === 'home' && (
-              <HomeView
-                onOpenCourse={openCourse}
-                profileName={displayName}
-              />
-            )}
-            {currentView === 'course' && (
-              <CourseView
-                courseId={selectedCourse}
-                onBack={() => setCurrentView('home')}
-              />
-            )}
-            {currentView === 'profile' && (
-              <ProfileView />
-            )}
-          </div>
-        </main>
-      </div>
+      {/* Main content */}
+      <main
+        className={`flex-1 min-w-0 transition-all duration-300 ease-in-out`}
+        style={{ paddingLeft: 0 }}
+      >
+        <div className="w-full max-w-7xl mx-auto px-4 py-6 md:px-8 md:py-8 pt-16 md:pt-8">
+          {currentView === 'home' && (
+            <HomeView
+              onOpenCourse={openCourse}
+              profileName={displayName}
+            />
+          )}
+          {currentView === 'course' && (
+            <CourseView
+              courseId={selectedCourse}
+              onBack={() => setCurrentView('home')}
+            />
+          )}
+          {currentView === 'profile' && (
+            <ProfileView />
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
