@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from src.db.session import get_db
 from src.db.models import CourseRow, EnrollmentRow, StudentRow, AssignmentRow, GradeRow
 from src.domain.grade_utils import to_percent
+from src.domain.grade_book import AssignmentScore
+from src.domain.grade_book_factory import GradeBookFactory
 
 router = APIRouter()
 
@@ -57,6 +59,7 @@ class UpdateCourseBody(BaseModel):
     semester: Optional[str] = None
     instructor: Optional[str] = None
     description: Optional[str] = None
+    grading_scheme: Optional[str] = None
 
 
 @router.get("/courses")
@@ -116,9 +119,12 @@ def update_course(course_id: int, body: UpdateCourseBody, db: Session = Depends(
         c.instructor = body.instructor
     if body.description is not None:
         c.description = body.description
+    if body.grading_scheme is not None:
+        c.grading_scheme = body.grading_scheme
     db.commit()
     db.refresh(c)
-    return _fmt_course(c, None, None)
+    cnt = db.query(EnrollmentRow).filter(EnrollmentRow.course_id == course_id).count()
+    return _fmt_course(c, cnt, _avg_grade(db, course_id))
 
 
 @router.delete("/courses/{course_id}", status_code=204)
@@ -127,6 +133,51 @@ def delete_course(course_id: int, db: Session = Depends(get_db)):
     if c:
         db.delete(c)
         db.commit()
+
+
+@router.get("/courses/{course_id}/computed-grades")
+def get_computed_grades(course_id: int, db: Session = Depends(get_db)):
+    """Return each enrolled student's final grade computed through the course's GradeBook."""
+    c = db.query(CourseRow).filter(CourseRow.id == course_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Course not found")
+    scheme = c.grading_scheme or "weighted"
+    gb = GradeBookFactory.create(scheme)
+
+    enrolled = (
+        db.query(StudentRow)
+        .join(EnrollmentRow, EnrollmentRow.student_id == StudentRow.id)
+        .filter(EnrollmentRow.course_id == course_id)
+        .all()
+    )
+    assignments = db.query(AssignmentRow).filter(AssignmentRow.course_id == course_id).all()
+    result = []
+    for s in enrolled:
+        scores = []
+        for asgn in assignments:
+            grade = db.query(GradeRow).filter(
+                GradeRow.student_id == s.id,
+                GradeRow.assignment_id == asgn.id,
+            ).first()
+            if grade:
+                scores.append(AssignmentScore(
+                    assignment_id=asgn.id,
+                    score=float(grade.score),
+                    max_score=float(asgn.max_score),
+                    weight=float(asgn.weight),
+                    name=asgn.name,
+                    type=asgn.type,
+                ))
+        gr = gb.calculate_grade(scores) if scores else None
+        result.append({
+            "student_id": s.id,
+            "student_name": s.name,
+            "grading_scheme": scheme,
+            "percentage": gr.percentage if gr else None,
+            "letter_grade": gr.letter_grade if gr else None,
+            "display_label": gr.display_label if gr else None,
+        })
+    return result
 
 
 @router.get("/courses/{course_id}/students")

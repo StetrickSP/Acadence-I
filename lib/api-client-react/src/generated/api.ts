@@ -27,6 +27,7 @@ import type {
   AssignmentUpdate,
   AtRiskPrediction,
   AtRiskStudent,
+  ComputedStudentGrade,
   Course,
   CourseInput,
   CoursePerformance,
@@ -1222,6 +1223,51 @@ export function useGetCourseStats<TData = Awaited<ReturnType<typeof getCourseSta
 
 
 
+
+
+export const getGetComputedGradesUrl = (id: number) => `/api/courses/${id}/computed-grades`;
+
+export const getGetComputedGradesQueryKey = (id: number) => [`/api/courses/${id}/computed-grades`] as const;
+
+/**
+ * @summary Get scheme-computed final grades for every enrolled student in a course
+ */
+export const getComputedGrades = async (id: number, options?: RequestInit): Promise<ComputedStudentGrade[]> => {
+  return customFetch<ComputedStudentGrade[]>(getGetComputedGradesUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetComputedGradesQueryOptions = <TData = Awaited<ReturnType<typeof getComputedGrades>>, TError = ErrorType<unknown>>(
+  id: number,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getComputedGrades>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetComputedGradesQueryKey(id);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getComputedGrades>>> = ({ signal }) =>
+    getComputedGrades(id, { signal, ...requestOptions });
+  return { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getComputedGrades>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetComputedGradesQueryResult = NonNullable<Awaited<ReturnType<typeof getComputedGrades>>>;
+export type GetComputedGradesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get scheme-computed final grades for every enrolled student in a course
+ */
+export function useGetComputedGrades<TData = Awaited<ReturnType<typeof getComputedGrades>>, TError = ErrorType<unknown>>(
+  id: number,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getComputedGrades>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetComputedGradesQueryOptions(id, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 
 export const getListEnrollmentsUrl = (params?: ListEnrollmentsParams,) => {

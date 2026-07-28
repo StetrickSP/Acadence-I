@@ -77,6 +77,7 @@ export interface Course {
   student_count?: number | null;
   /** @nullable */
   average_grade?: number | null;
+  grading_scheme?: string;
   created_at: string;
 }
 
@@ -95,6 +96,19 @@ export interface CourseUpdate {
   semester?: string;
   instructor?: string;
   description?: string;
+  grading_scheme?: string;
+}
+
+export interface ComputedStudentGrade {
+  student_id: number;
+  student_name: string;
+  grading_scheme: string;
+  /** @nullable */
+  percentage: number | null;
+  /** @nullable */
+  letter_grade: string | null;
+  /** @nullable */
+  display_label: string | null;
 }
 
 export interface CourseStats {

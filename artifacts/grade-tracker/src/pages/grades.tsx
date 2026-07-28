@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { Plus, ClipboardList, ArrowUpDown } from 'lucide-react';
 import {
   useListGrades, useCreateGrade, useListStudents, useListCourses, useListAssignments,
+  useGetComputedGrades,
   getListGradesQueryKey,
 } from '@workspace/api-client-react';
 import { ImportExportDialog } from '@/components/import-export-dialog';
@@ -27,6 +28,36 @@ const gradeSchema = z.object({
   score: z.coerce.number().min(0, 'Score must be ≥ 0'),
   feedback: z.string().optional(),
 });
+
+function ComputedGradeCell({
+  studentId,
+  courseId,
+}: {
+  studentId: number;
+  courseId: number;
+}) {
+  const { data: computedGrades } = useGetComputedGrades(courseId);
+  const entry = computedGrades?.find((g) => g.student_id === studentId);
+  if (!entry || entry.display_label === null) return <span className="text-muted-foreground">—</span>;
+
+  const scheme = entry.grading_scheme;
+  if (scheme === 'pass_fail') {
+    return (
+      <span
+        className={`text-xs font-bold px-2 py-0.5 rounded ${
+          entry.display_label === 'Pass' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+        }`}
+      >
+        {entry.display_label}
+      </span>
+    );
+  }
+  return (
+    <span className="font-mono text-xs font-semibold text-foreground" title={entry.display_label ?? undefined}>
+      {entry.display_label}
+    </span>
+  );
+}
 
 export default function Grades() {
   const [filterStudentId, setFilterStudentId] = useState<string>('');
@@ -67,6 +98,8 @@ export default function Grades() {
       },
     );
   };
+
+  const activeCourseId = filterCourseId && filterCourseId !== 'all' ? Number(filterCourseId) : null;
 
   return (
     <AppShell>
@@ -185,6 +218,9 @@ export default function Grades() {
                       <th className="text-right px-4 py-3 text-muted-foreground font-medium">Score</th>
                       <th className="text-right px-4 py-3 text-muted-foreground font-medium">%</th>
                       <th className="text-center px-4 py-3 text-muted-foreground font-medium">Grade</th>
+                      {activeCourseId && (
+                        <th className="text-center px-4 py-3 text-muted-foreground font-medium">Final Grade</th>
+                      )}
                       <th className="text-left px-4 py-3 text-muted-foreground font-medium hidden md:table-cell">Submitted</th>
                     </tr>
                   </thead>
@@ -200,6 +236,11 @@ export default function Grades() {
                         <td className="px-4 py-3 text-center">
                           {grade.letter_grade ? <GradeBadge letter={grade.letter_grade} size="sm" /> : '—'}
                         </td>
+                        {activeCourseId && (
+                          <td className="px-4 py-3 text-center">
+                            <ComputedGradeCell studentId={grade.student_id} courseId={activeCourseId} />
+                          </td>
+                        )}
                         <td className="px-4 py-3 text-muted-foreground text-xs hidden md:table-cell">
                           {grade.submitted_at ? new Date(grade.submitted_at).toLocaleDateString() : '—'}
                         </td>

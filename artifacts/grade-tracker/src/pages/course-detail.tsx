@@ -14,7 +14,9 @@ import {
   usePredictAtRisk,
   useGetGradeDistribution,
   useGetCourseRankings,
+  useGetComputedGrades,
 } from '@workspace/api-client-react';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
@@ -32,6 +34,12 @@ export default function CourseDetail() {
   const { data: predictions } = usePredictAtRisk(courseId);
   const { data: distribution } = useGetGradeDistribution({ course_id: courseId });
   const { data: rankings, isLoading: rankingsLoading } = useGetCourseRankings(courseId);
+  const { data: computedGrades } = useGetComputedGrades(courseId);
+
+  // Build a lookup map: student_id → computed grade entry
+  const computedByStudent = Object.fromEntries(
+    (computedGrades ?? []).map((g) => [g.student_id, g])
+  );
 
   if (courseLoading) {
     return (
@@ -65,6 +73,18 @@ export default function CourseDetail() {
     A: '#22c55e', B: '#3b82f6', C: '#f59e0b', D: '#f97316', F: '#ef4444',
   };
 
+  const schemeBadgeClass: Record<string, string> = {
+    weighted: 'bg-blue-50 text-blue-700 border-blue-200',
+    curved: 'bg-purple-50 text-purple-700 border-purple-200',
+    pass_fail: 'bg-orange-50 text-orange-700 border-orange-200',
+  };
+  const schemeLabel: Record<string, string> = {
+    weighted: 'Weighted',
+    curved: 'Curved',
+    pass_fail: 'Pass/Fail',
+  };
+  const scheme = course.grading_scheme ?? 'weighted';
+
   return (
     <AppShell>
       <div className="p-6 lg:p-8 space-y-6">
@@ -76,6 +96,12 @@ export default function CourseDetail() {
             <div className="flex items-center gap-3 mb-1">
               <h1 className="text-3xl font-display font-bold text-foreground">{course.name}</h1>
               <span className="text-sm font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">{course.code}</span>
+              <Badge
+                variant="outline"
+                className={`text-xs px-2 py-0.5 ${schemeBadgeClass[scheme] ?? ''}`}
+              >
+                {schemeLabel[scheme] ?? scheme}
+              </Badge>
             </div>
             <p className="text-muted-foreground">{course.instructor} · {course.semester} · {course.credits} credits</p>
           </div>
@@ -271,19 +297,37 @@ export default function CourseDetail() {
           <CardContent>
             {students && students.length > 0 ? (
               <div className="grid gap-3 md:grid-cols-2">
-                {students.map((s) => (
-                  <Link key={s.id} href={`/students/${s.id}`}>
-                    <div className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                        {s.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                {students.map((s) => {
+                  const cg = computedByStudent[s.id];
+                  return (
+                    <Link key={s.id} href={`/students/${s.id}`}>
+                      <div className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer">
+                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                          {s.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">{s.major} · Year {s.year}</p>
+                        </div>
+                        {cg?.display_label && (
+                          <div className="shrink-0">
+                            {scheme === 'pass_fail' ? (
+                              <span
+                                className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                  cg.display_label === 'Pass' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                }`}
+                              >
+                                {cg.display_label}
+                              </span>
+                            ) : (
+                              <GradeBadge letter={cg.letter_grade ?? '?'} size="sm" />
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
-                        <p className="text-xs text-muted-foreground">{s.major} · Year {s.year}</p>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-center text-muted-foreground py-8">No students enrolled</p>
