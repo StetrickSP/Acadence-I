@@ -91,13 +91,11 @@ def _get_token(request: Request) -> Optional[str]:
 # Core verification — raises on any invalid token
 # ---------------------------------------------------------------------------
 
-def _verify_token(token: str) -> str:
-    """Cryptographically verify a Clerk JWT and return the verified user ID.
+def _verify_token_payload(token: str) -> dict:
+    """Cryptographically verify a Clerk JWT and return the full verified payload.
 
     Raises:
-        jwt.ExpiredSignatureError   → token has expired
-        jwt.InvalidTokenError       → signature invalid / malformed / wrong issuer
-        HTTPException(401)          → convenience wrapper for FastAPI routes
+        HTTPException(401) on any invalid/expired/malformed token.
     """
     try:
         client = _get_jwks_client()
@@ -116,7 +114,7 @@ def _verify_token(token: str) -> str:
         user_id: str = payload["sub"]
         if not user_id:
             raise jwt.InvalidTokenError("Missing sub claim")
-        return user_id
+        return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Session expired — please sign in again")
     except jwt.PyJWKClientError as exc:
@@ -125,20 +123,48 @@ def _verify_token(token: str) -> str:
         raise HTTPException(status_code=401, detail=f"Invalid session token: {exc}")
 
 
+def _verify_token(token: str) -> str:
+    """Verify a Clerk JWT and return the verified user ID (sub claim)."""
+    return _verify_token_payload(token)["sub"]
+
+
+def _email_from_claims(payload: dict) -> Optional[str]:
+    """Extract the user's email from verified JWT claims, if present.
+
+    The session token is cryptographically verified, so an email claim in it
+    is trustworthy. Replit-managed Clerk tokens typically carry the email
+    directly; check the common claim names.
+    """
+    for key in ("email", "primary_email", "email_address"):
+        val = payload.get(key)
+        if isinstance(val, str) and "@" in val:
+            return val
+    # Some templates nest user info under "user" or "claims"
+    user = payload.get("user")
+    if isinstance(user, dict):
+        val = user.get("email")
+        if isinstance(val, str) and "@" in val:
+            return val
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Clerk REST API — fetch user email for account resolution
 # ---------------------------------------------------------------------------
 
-def _get_clerk_email(user_id: str) -> Optional[str]:
-    """Return the primary email for a verified Clerk user ID.
+_clerk_api_warned = False
+_no_email_claim_warned = False
 
-    Tries up to 3 times with a short back-off before giving up.
-    Returns None only when CLERK_SECRET_KEY is absent — callers must treat
-    None as a hard failure (Clerk unavailable), not as "no email found".
-    Raises _ClerkApiUnavailableException when all retries are exhausted.
+
+def _get_clerk_email(user_id: str) -> Optional[str]:
+    """Best-effort fallback: fetch the primary email via Clerk's backend API.
+
+    Replit-managed Clerk tenants reject this endpoint (403), so this is only
+    a fallback for tokens that carry no email claim. A single attempt, never
+    raises — returns None on any failure and logs once per process.
     """
+    global _clerk_api_warned
     import logging
-    import time
     logger = logging.getLogger(__name__)
 
     if not CLERK_SECRET_KEY:
@@ -148,28 +174,22 @@ def _get_clerk_email(user_id: str) -> Optional[str]:
     req = urllib.request.Request(
         url, headers={"Authorization": f"Bearer {CLERK_SECRET_KEY}"}
     )
-    last_exc: Exception = RuntimeError("No attempts made")
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                data = json.loads(resp.read())
-            primary_id = data.get("primary_email_address_id")
-            for ea in data.get("email_addresses", []):
-                if ea.get("id") == primary_id:
-                    return ea.get("email_address")
-            # Clerk responded but no primary email found — not a transient error
-            return None
-        except Exception as exc:
-            last_exc = exc
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+        primary_id = data.get("primary_email_address_id")
+        for ea in data.get("email_addresses", []):
+            if ea.get("id") == primary_id:
+                return ea.get("email_address")
+        return None
+    except Exception as exc:
+        if not _clerk_api_warned:
             logger.warning(
-                "Clerk API email lookup attempt %d/3 failed for user %s: %s",
-                attempt + 1, user_id, exc,
+                "Clerk backend API email lookup unavailable (expected with "
+                "Replit-managed Clerk); relying on JWT email claims. Error: %s", exc,
             )
-            if attempt < 2:
-                time.sleep(0.4 * (attempt + 1))
-
-    # All 3 attempts exhausted — signal caller that Clerk is unavailable
-    raise _ClerkApiUnavailableException(str(last_exc))
+            _clerk_api_warned = True
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +247,8 @@ def get_student_from_request(request: Request, db: Session) -> StudentRow:
     if not token:
         raise HTTPException(status_code=401, detail="Not signed in")
 
-    user_id = _verify_token(token)  # raises 401 on invalid token
+    payload = _verify_token_payload(token)  # raises 401 on invalid token
+    user_id = payload["sub"]
 
     # Fast path: clerk_user_id already linked — no Clerk API call needed
     from src.db.models import StudentRow as _SR
@@ -235,12 +256,26 @@ def get_student_from_request(request: Request, db: Session) -> StudentRow:
     if fast:
         return fast
 
-    # Slow path: look up email via Clerk REST API (the only trusted source)
-    # _get_clerk_email raises _ClerkApiUnavailableException when all retries fail.
-    clerk_email = _get_clerk_email(user_id)  # may raise _ClerkApiUnavailableException
+    # Primary source: email claim from the cryptographically verified JWT.
+    clerk_email = _email_from_claims(payload)
+
+    # Fallback: best-effort Clerk backend API lookup (single attempt, never
+    # raises — Replit-managed Clerk tenants reject this endpoint).
+    if not clerk_email:
+        global _no_email_claim_warned
+        if not _no_email_claim_warned:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Session token carried no email claim (claim keys: %s); "
+                "falling back to Clerk API lookup.", sorted(payload.keys()),
+            )
+            _no_email_claim_warned = True
+        clerk_email = _get_clerk_email(user_id)
 
     student = _resolve_student(db, user_id, clerk_email)
     if not student:
+        # No matching student record (or no email available) → treat as
+        # instructor/admin signal, not a server error.
         raise _NoStudentException()
     return student
 
