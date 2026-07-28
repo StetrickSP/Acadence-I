@@ -130,23 +130,46 @@ def _verify_token(token: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _get_clerk_email(user_id: str) -> Optional[str]:
-    """Return the primary email for a verified Clerk user ID."""
+    """Return the primary email for a verified Clerk user ID.
+
+    Tries up to 3 times with a short back-off before giving up.
+    Returns None only when CLERK_SECRET_KEY is absent — callers must treat
+    None as a hard failure (Clerk unavailable), not as "no email found".
+    Raises _ClerkApiUnavailableException when all retries are exhausted.
+    """
+    import logging
+    import time
+    logger = logging.getLogger(__name__)
+
     if not CLERK_SECRET_KEY:
         return None
-    try:
-        url = f"https://api.clerk.com/v1/users/{user_id}"
-        req = urllib.request.Request(
-            url, headers={"Authorization": f"Bearer {CLERK_SECRET_KEY}"}
-        )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read())
-        primary_id = data.get("primary_email_address_id")
-        for ea in data.get("email_addresses", []):
-            if ea.get("id") == primary_id:
-                return ea.get("email_address")
-    except Exception:
-        pass
-    return None
+
+    url = f"https://api.clerk.com/v1/users/{user_id}"
+    req = urllib.request.Request(
+        url, headers={"Authorization": f"Bearer {CLERK_SECRET_KEY}"}
+    )
+    last_exc: Exception = RuntimeError("No attempts made")
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read())
+            primary_id = data.get("primary_email_address_id")
+            for ea in data.get("email_addresses", []):
+                if ea.get("id") == primary_id:
+                    return ea.get("email_address")
+            # Clerk responded but no primary email found — not a transient error
+            return None
+        except Exception as exc:
+            last_exc = exc
+            logger.warning(
+                "Clerk API email lookup attempt %d/3 failed for user %s: %s",
+                attempt + 1, user_id, exc,
+            )
+            if attempt < 2:
+                time.sleep(0.4 * (attempt + 1))
+
+    # All 3 attempts exhausted — signal caller that Clerk is unavailable
+    raise _ClerkApiUnavailableException(str(last_exc))
 
 
 # ---------------------------------------------------------------------------
@@ -190,25 +213,45 @@ def require_auth(request: Request) -> str:
 
 
 def get_student_from_request(request: Request, db: Session) -> StudentRow:
-    """Resolve the signed-in Clerk user to a student record or raise 403.
+    """Resolve the signed-in Clerk user to a student record or raise 403/503.
 
     Auth is fully verified before any DB lookup occurs.
+
+    Resolution order:
+      1. clerk_user_id fast-path (already linked in DB — no Clerk API call needed)
+      2. Clerk REST API email lookup → match by email and auto-link for next time
+         If Clerk API is unreachable after retries → 503 (not 403) so the
+         frontend can distinguish a transient API outage from "not a student".
     """
     token = _get_token(request)
     if not token:
         raise HTTPException(status_code=401, detail="Not signed in")
 
-    user_id = _verify_token(token)           # raises 401 on invalid token
-    clerk_email = _get_clerk_email(user_id)  # safe: uses verified user_id
-    student = _resolve_student(db, user_id, clerk_email)
+    user_id = _verify_token(token)  # raises 401 on invalid token
 
+    # Fast path: clerk_user_id already linked — no Clerk API call needed
+    from src.db.models import StudentRow as _SR
+    fast = db.query(_SR).filter(_SR.clerk_user_id == user_id).first()
+    if fast:
+        return fast
+
+    # Slow path: look up email via Clerk REST API (the only trusted source)
+    # _get_clerk_email raises _ClerkApiUnavailableException when all retries fail.
+    clerk_email = _get_clerk_email(user_id)  # may raise _ClerkApiUnavailableException
+
+    student = _resolve_student(db, user_id, clerk_email)
     if not student:
-        # Return a plain JSONResponse so the body is {"isAdmin": true} at the top level.
-        # HTTPException wraps dict details inside {"detail": ...}, which the frontend
-        # hook cannot see when checking body?.isAdmin === true.
         raise _NoStudentException()
     return student
 
 
 class _NoStudentException(Exception):
     """Sentinel raised when no student row is linked to the verified Clerk user."""
+
+
+class _ClerkApiUnavailableException(Exception):
+    """Raised when the Clerk REST API is unreachable after retries.
+
+    Mapped to HTTP 503 so clients can distinguish a transient outage from
+    'genuinely not a student' (403).
+    """

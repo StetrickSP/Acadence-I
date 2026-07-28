@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
-from src.auth.clerk import _NoStudentException
+from src.auth.clerk import _NoStudentException, _ClerkApiUnavailableException
 
 from src.routes.students import router as students_router
 from src.routes.courses import router as courses_router
@@ -27,6 +27,12 @@ app = FastAPI(title="University Grade Tracker API", version="2.0.0")
 async def no_student_handler(request: Request, exc: _NoStudentException):
     """Return a flat 403 body so the frontend hook can read body.isAdmin directly."""
     return JSONResponse(status_code=403, content={"isAdmin": True})
+
+
+@app.exception_handler(_ClerkApiUnavailableException)
+async def clerk_api_unavailable_handler(request: Request, exc: _ClerkApiUnavailableException):
+    """Return 503 when Clerk REST API is down so clients show 'try again', not 'not registered'."""
+    return JSONResponse(status_code=503, content={"clerkLookupFailed": True})
 
 
 @app.exception_handler(IntegrityError)

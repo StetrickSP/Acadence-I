@@ -34,7 +34,7 @@ function AlertIcon() {
 
 // ── RolePicker ───────────────────────────────────────────────────────────────
 
-type PageState = 'pick' | 'checking' | 'not_registered' | 'error';
+type PageState = 'pick' | 'checking' | 'not_registered' | 'clerk_down' | 'error';
 
 export default function RolePickerPage() {
   const [state, setState] = useState<PageState>('pick');
@@ -60,10 +60,11 @@ export default function RolePickerPage() {
       }
       if (res.status === 403) {
         const body = await res.json().catch(() => ({}));
-        if (body?.isAdmin === true) {
-          setState('not_registered');
-          return;
-        }
+        if (body?.isAdmin === true) { setState('not_registered'); return; }
+      }
+      if (res.status === 503) {
+        const body = await res.json().catch(() => ({}));
+        if (body?.clerkLookupFailed === true) { setState('clerk_down'); return; }
       }
       setState('error');
     } catch {
@@ -101,6 +102,34 @@ export default function RolePickerPage() {
               className="text-sm text-teal-700 hover:text-teal-800 font-medium underline underline-offset-2 mt-1"
             >
               Back to sign in
+            </button>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // ── Clerk API temporarily down ──────────────────────────────────────────────
+  if (state === 'clerk_down') {
+    return (
+      <Shell>
+        <div className="max-w-sm w-full bg-white rounded-2xl shadow-lg border border-slate-100 p-8 text-center">
+          <h2 className="text-slate-900 font-bold text-lg mb-2">Verification temporarily unavailable</h2>
+          <p className="text-slate-500 text-sm mb-6">
+            We couldn't verify your account right now. Please wait a moment and try again.
+          </p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => setState('pick')}
+              className="w-full py-2 px-4 rounded-xl bg-teal-700 text-white text-sm font-bold hover:bg-teal-800 transition-colors"
+            >
+              Try again
+            </button>
+            <button
+              onClick={handleBack}
+              className="text-sm text-slate-500 hover:text-slate-700 underline underline-offset-2 mt-1"
+            >
+              Sign out
             </button>
           </div>
         </div>

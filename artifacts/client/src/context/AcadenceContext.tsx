@@ -12,6 +12,7 @@ const API = `${BASE}/api`;
 
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return fetch(`${API}${path}`, {
+    credentials: 'include',
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   });
