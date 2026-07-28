@@ -1,125 +1,46 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type {
   CourseData, AttendanceState, ProfileData, SettingsData,
   Course, Student, Assignment, Session, AttendanceStatus,
 } from '@/lib/acadence-utils';
-import { computeCoursePassRate, computeAverageGpa } from '@/lib/acadence-utils';
+import { computeCoursePassRate } from '@/lib/acadence-utils';
 
-// ── Initial data (mirrors HTML prototype) ─────────────────────────────────────
+// ── API helpers ────────────────────────────────────────────────────────────────
 
-const INITIAL_COURSE_DATA: CourseData = {
-  cs301: {
-    name: 'Algorithms',
-    instructor: 'Dr. Nguyen · Monday & Wednesday · Room B-204',
-    passRate: '87%',
-    attendanceRate: '92%',
-    nextItem: 'Final project',
-    assignments: [
-      { id: 'a1', name: 'Assignment', weight: 30, maxPoints: 100 },
-      { id: 'a2', name: 'Midterm', weight: 30, maxPoints: 100 },
-      { id: 'a3', name: 'Final', weight: 40, maxPoints: 100 },
-    ],
-    students: [
-      { id: 'STU001', name: 'Nguyen Van A', email: 'nva@university.edu', status: 'Enrolled', scores: { a1: 92, a2: 88, a3: 85 } },
-      { id: 'STU002', name: 'Tran Thi B', email: 'ttb@university.edu', status: 'Enrolled', scores: { a1: 70, a2: 62, a3: 68 } },
-      { id: 'STU003', name: 'Le Hoang C', email: 'lhc@university.edu', status: 'Not Enrolled', scores: { a1: 52, a2: 45, a3: 40 } },
-      { id: 'STU004', name: 'Pham Minh D', email: 'pmd@university.edu', status: 'Enrolled', scores: { a1: 85, a2: 78, a3: 82 } },
-    ],
-  },
-  ds201: {
-    name: 'Data Analysis',
-    instructor: 'Prof. Tran · Tuesday & Thursday · Data Lab 3',
-    passRate: '81%',
-    attendanceRate: '86%',
-    nextItem: 'Data lab review',
-    assignments: [
-      { id: 'a1', name: 'Assignment', weight: 30, maxPoints: 100 },
-      { id: 'a2', name: 'Midterm', weight: 30, maxPoints: 100 },
-      { id: 'a3', name: 'Final', weight: 40, maxPoints: 100 },
-    ],
-    students: [
-      { id: 'STU002', name: 'Tran Thi B', email: 'ttb@university.edu', status: 'Enrolled', scores: { a1: 84, a2: 77, a3: 80 } },
-      { id: 'STU005', name: 'Vo Thanh E', email: 'vte@university.edu', status: 'Enrolled', scores: { a1: 94, a2: 91, a3: 93 } },
-      { id: 'STU006', name: 'Doan Kim F', email: 'dkf@university.edu', status: 'Enrolled', scores: { a1: 73, a2: 69, a3: 75 } },
-      { id: 'STU007', name: 'Bui Anh G', email: 'bag@university.edu', status: 'Not Enrolled', scores: { a1: 65, a2: 72, a3: 68 } },
-    ],
-  },
-  se401: {
-    name: 'Software Engineering',
-    instructor: 'Dr. Le · Tuesday & Friday · Innovation Studio',
-    passRate: '91%',
-    attendanceRate: '90%',
-    nextItem: 'Sprint demonstration',
-    assignments: [
-      { id: 'a1', name: 'Assignment', weight: 30, maxPoints: 100 },
-      { id: 'a2', name: 'Midterm', weight: 30, maxPoints: 100 },
-      { id: 'a3', name: 'Final', weight: 40, maxPoints: 100 },
-    ],
-    students: [
-      { id: 'STU001', name: 'Nguyen Van A', email: 'nva@university.edu', status: 'Enrolled', scores: { a1: 90, a2: 86, a3: 89 } },
-      { id: 'STU004', name: 'Pham Minh D', email: 'pmd@university.edu', status: 'Enrolled', scores: { a1: 82, a2: 79, a3: 84 } },
-      { id: 'STU008', name: 'Hoang Thu H', email: 'hth@university.edu', status: 'Enrolled', scores: { a1: 88, a2: 90, a3: 92 } },
-      { id: 'STU009', name: 'Ngo Duc I', email: 'ndi@university.edu', status: 'Not Enrolled', scores: { a1: 76, a2: 81, a3: 78 } },
-    ],
-  },
-  ai501: {
-    name: 'Machine Learning',
-    instructor: 'Dr. Pham · Wednesday & Friday · AI Research Lab',
-    passRate: '93%',
-    attendanceRate: '94%',
-    nextItem: 'Model evaluation',
-    assignments: [
-      { id: 'a1', name: 'Assignment', weight: 30, maxPoints: 100 },
-      { id: 'a2', name: 'Midterm', weight: 30, maxPoints: 100 },
-      { id: 'a3', name: 'Final', weight: 40, maxPoints: 100 },
-    ],
-    students: [
-      { id: 'STU005', name: 'Vo Thanh E', email: 'vte@university.edu', status: 'Enrolled', scores: { a1: 96, a2: 92, a3: 95 } },
-      { id: 'STU010', name: 'Dang Lan K', email: 'dlk@university.edu', status: 'Enrolled', scores: { a1: 89, a2: 85, a3: 91 } },
-      { id: 'STU011', name: 'Phan Quang L', email: 'pql@university.edu', status: 'Not Enrolled', scores: { a1: 78, a2: 82, a3: 80 } },
-      { id: 'STU012', name: 'Mai Ngoc M', email: 'mnm@university.edu', status: 'Enrolled', scores: { a1: 87, a2: 90, a3: 88 } },
-    ],
-  },
-};
+const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, '');
+const API = `${BASE_URL}/api`;
 
-const INITIAL_ATTENDANCE: AttendanceState = {
-  cs301: {
-    sessions: [
-      {
-        id: 's1', name: 'Lecture 1: Intro to Complexities', date: '2026-07-13', time: '09:00 - 11:00',
-        records: { STU001: 'present', STU002: 'present', STU003: 'absent', STU004: 'present' },
-      },
-      {
-        id: 's2', name: 'Lecture 2: Sorting and Searching', date: '2026-07-20', time: '09:00 - 11:00',
-        records: { STU001: 'present', STU002: 'absent', STU003: 'absent', STU004: 'late' },
-      },
-    ],
-  },
-  ds201: {
-    sessions: [
-      {
-        id: 's1', name: 'Lab 1: Python Review', date: '2026-07-14', time: '13:30 - 15:30',
-        records: { STU002: 'present', STU005: 'present', STU006: 'present', STU007: 'absent' },
-      },
-    ],
-  },
-  se401: {
-    sessions: [
-      {
-        id: 's1', name: 'Seminar 1: SDLC Methodologies', date: '2026-07-14', time: '10:00 - 12:00',
-        records: { STU001: 'present', STU004: 'present', STU008: 'present', STU009: 'late' },
-      },
-    ],
-  },
-  ai501: {
-    sessions: [
-      {
-        id: 's1', name: 'Introduction to Supervised Learning', date: '2026-07-15', time: '08:30 - 10:30',
-        records: { STU005: 'present', STU010: 'present', STU011: 'absent', STU012: 'present' },
-      },
-    ],
-  },
-};
+async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  // Dashboard routes (/courses, /grades, /assignments, /sessions, /enrollments, /students)
+  // are public — no auth header required.  The X-Demo-Auth bypass in require_auth is a
+  // server-side-only mechanism for future protected routes; the key must never be embedded
+  // in the client bundle.
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  return fetch(`${API}${path}`, { ...options, headers });
+}
+
+// ── DB ID tracking (mutable ref — not state, to avoid extra renders) ───────────
+
+interface DbIds {
+  /** courseKey (e.g. "cs301") → numeric course DB id */
+  courses: Record<string, number>;
+  /** student_id_str (e.g. "STU001") → numeric student DB id */
+  students: Record<string, number>;
+  /** courseKey → { frontendAssignmentId → numeric assignment DB id } */
+  assignments: Record<string, Record<string, number>>;
+  /** courseKey → { frontendSessionId → numeric session DB id } */
+  sessions: Record<string, Record<string, number>>;
+  /** courseKey → semester string (needed for enrollment) */
+  semester: Record<string, string>;
+}
+
+// ── Initial / empty state ─────────────────────────────────────────────────────
+
+const EMPTY_COURSE_DATA: CourseData = {};
+const EMPTY_ATTENDANCE: AttendanceState = {};
 
 const INITIAL_PROFILE: ProfileData = {
   name: 'Dr. Nguyen Minh Tuan',
@@ -134,13 +55,17 @@ const INITIAL_SETTINGS: SettingsData = {
   password: '••••••••',
 };
 
-// ── Context type ─────────────────────────────────────────────────────────────
+const PROFILE_STORAGE_KEY = 'acadence_profile';
+
+// ── Context type ──────────────────────────────────────────────────────────────
 
 export interface AcadenceContextType {
   courseData: CourseData;
   attendanceState: AttendanceState;
   profileData: ProfileData;
   settingsData: SettingsData;
+  // Loading state (true while initial fetch is in progress)
+  isLoading: boolean;
   // Course mutations
   addCourse: (id: string, course: Omit<Course, 'assignments' | 'students'> & { assignments?: Assignment[]; students?: Student[] }) => void;
   deleteCourse: (id: string) => void;
@@ -169,9 +94,84 @@ export interface AcadenceContextType {
   getStudentAttendance: (studentId: string, courseId: string) => { session: Session; status: AttendanceStatus | undefined }[];
 }
 
-// ── Context ────────────────────────────────────────────────────────────────────
+// ── Context ───────────────────────────────────────────────────────────────────
 
 const AcadenceContext = createContext<AcadenceContextType | null>(null);
+
+// ── Helpers to parse /courses/full response ────────────────────────────────────
+
+function parseFullResponse(data: { courses: any[] }): {
+  courseData: CourseData;
+  attendanceState: AttendanceState;
+  dbIds: DbIds;
+} {
+  const courseData: CourseData = {};
+  const attendanceState: AttendanceState = {};
+  const dbIds: DbIds = {
+    courses: {},
+    students: {},
+    assignments: {},
+    sessions: {},
+    semester: {},
+  };
+
+  for (const c of data.courses) {
+    const key: string = c.code.toLowerCase();
+    dbIds.courses[key] = c.db_id;
+    dbIds.semester[key] = c.semester || '2026-Fall';
+    dbIds.assignments[key] = {};
+    dbIds.sessions[key] = {};
+
+    const assignments: Assignment[] = c.assignments.map((a: any) => {
+      const frontendId = `a${a.id}`;
+      dbIds.assignments[key][frontendId] = a.id;
+      return {
+        id: frontendId,
+        name: a.name,
+        weight: a.weight,
+        maxPoints: a.maxPoints,
+      };
+    });
+
+    const students: Student[] = c.students.map((s: any) => {
+      dbIds.students[s.id] = s.db_id;
+      return {
+        id: s.id,
+        name: s.name,
+        email: s.email,
+        status: (s.status || 'Enrolled') as Student['status'],
+        scores: s.scores || {},
+      };
+    });
+
+    const sessions: Session[] = c.sessions.map((sess: any) => {
+      dbIds.sessions[key][sess.id] = sess.db_id;
+      return {
+        id: sess.id,
+        name: sess.name,
+        date: sess.date,
+        time: sess.time,
+        records: sess.records || {},
+      };
+    });
+
+    courseData[key] = {
+      name: c.name,
+      instructor: c.instructor,
+      passRate: computeCoursePassRate({ assignments, students }),
+      attendanceRate: '100%',
+      nextItem: '',
+      assignments,
+      students,
+    };
+
+    attendanceState[key] = { sessions };
+  }
+
+  return { courseData, attendanceState, dbIds };
+}
+
+// ── Provider ──────────────────────────────────────────────────────────────────
 
 export function AcadenceProvider({
   children,
@@ -182,55 +182,116 @@ export function AcadenceProvider({
   initialProfileName?: string;
   initialSettingsEmail?: string;
 }) {
-  const [courseData, setCourseData] = useState<CourseData>(INITIAL_COURSE_DATA);
-  const [attendanceState, setAttendanceState] = useState<AttendanceState>(INITIAL_ATTENDANCE);
-  const [profileData, setProfileData] = useState<ProfileData>({
-    ...INITIAL_PROFILE,
-    name: initialProfileName || INITIAL_PROFILE.name,
-    avatarInitials: initialProfileName
-      ? initialProfileName.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
-      : INITIAL_PROFILE.avatarInitials,
+  const [isLoading, setIsLoading] = useState(true);
+  const [courseData, setCourseData] = useState<CourseData>(EMPTY_COURSE_DATA);
+  const [attendanceState, setAttendanceState] = useState<AttendanceState>(EMPTY_ATTENDANCE);
+
+  // Profile: persist in localStorage since there is no backend profile endpoint yet.
+  const [profileData, setProfileData] = useState<ProfileData>(() => {
+    try {
+      const stored = localStorage.getItem(PROFILE_STORAGE_KEY);
+      if (stored) return JSON.parse(stored) as ProfileData;
+    } catch { /* ignore */ }
+    const base = INITIAL_PROFILE;
+    if (initialProfileName) {
+      return {
+        ...base,
+        name: initialProfileName,
+        avatarInitials: initialProfileName.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase(),
+      };
+    }
+    return base;
   });
+
   const [settingsData, setSettingsData] = useState<SettingsData>({
     ...INITIAL_SETTINGS,
     email: initialSettingsEmail || INITIAL_SETTINGS.email,
   });
 
+  // Mutable ref for DB ID mappings — updated on load and on every mutation
+  const dbIdsRef = useRef<DbIds>({
+    courses: {},
+    students: {},
+    assignments: {},
+    sessions: {},
+    semester: {},
+  });
+
+  // ── Initial data load ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    apiFetch('/courses/full')
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const { courseData: cd, attendanceState: at, dbIds } = parseFullResponse(data);
+        setCourseData(cd);
+        setAttendanceState(at);
+        dbIdsRef.current = dbIds;
+      })
+      .catch((err) => {
+        console.error('[AcadenceContext] Failed to load courses/full:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   // ── Course mutations ────────────────────────────────────────────────────────
 
   const addCourse = useCallback((id: string, courseInit: Partial<Course>) => {
-    const normalizedId = id.toLowerCase().trim();
-    setCourseData((prev) => {
-      if (prev[normalizedId]) return prev;
-      return {
-        ...prev,
-        [normalizedId]: {
-          name: courseInit.name || '',
-          instructor: courseInit.instructor || '',
-          passRate: '100%',
-          attendanceRate: '100%',
-          nextItem: 'Initial Orientation',
-          assignments: [
-            { id: 'a1', name: 'Assignment', weight: 30, maxPoints: 100 },
-            { id: 'a2', name: 'Midterm', weight: 30, maxPoints: 100 },
-            { id: 'a3', name: 'Final', weight: 40, maxPoints: 100 },
-          ],
-          students: [
-            { id: 'STU001', name: 'Nguyen Van A', email: 'nva@university.edu', status: 'Enrolled', scores: { a1: 100, a2: 100, a3: 100 } },
-            { id: 'STU002', name: 'Tran Thi B', email: 'ttb@university.edu', status: 'Enrolled', scores: { a1: 100, a2: 100, a3: 100 } },
-          ],
-        },
-      };
-    });
-    setAttendanceState((prev) => ({
-      ...prev,
-      [normalizedId]: { sessions: [] },
-    }));
+    const key = id.toLowerCase().trim();
+    const body = {
+      code: key,
+      name: courseInit.name || '',
+      credits: 3,
+      semester: '2026-Fall',
+      instructor: courseInit.instructor || '',
+      description: '',
+      grading_scheme: 'weighted',
+    };
+    apiFetch('/courses', { method: 'POST', body: JSON.stringify(body) })
+      .then((r) => r.json())
+      .then((newCourse) => {
+        dbIdsRef.current.courses[key] = newCourse.id;
+        dbIdsRef.current.semester[key] = newCourse.semester;
+        dbIdsRef.current.assignments[key] = {};
+        dbIdsRef.current.sessions[key] = {};
+        setCourseData((prev) => {
+          if (prev[key]) return prev;
+          return {
+            ...prev,
+            [key]: {
+              name: newCourse.name,
+              instructor: newCourse.instructor || '',
+              passRate: '100%',
+              attendanceRate: '100%',
+              nextItem: '',
+              assignments: [],
+              students: [],
+            },
+          };
+        });
+        setAttendanceState((prev) => ({ ...prev, [key]: { sessions: [] } }));
+      })
+      .catch((err) => console.error('[addCourse] API error:', err));
   }, []);
 
   const deleteCourse = useCallback((id: string) => {
+    // Guard: never delete the last course — check before touching state or the DB.
+    const currentKeys = Object.keys(courseData);
+    if (currentKeys.length <= 1) return;
+
+    const dbId = dbIdsRef.current.courses[id];
+    if (dbId) {
+      apiFetch(`/courses/${dbId}`, { method: 'DELETE' })
+        .catch((err) => console.error('[deleteCourse] API error:', err));
+    }
     setCourseData((prev) => {
-      if (Object.keys(prev).length <= 1) return prev;
+      if (Object.keys(prev).length <= 1) return prev; // double-check inside setter
       const next = { ...prev };
       delete next[id];
       return next;
@@ -240,9 +301,21 @@ export function AcadenceProvider({
       delete next[id];
       return next;
     });
-  }, []);
+    // Clean up dbIds
+    delete dbIdsRef.current.courses[id];
+    delete dbIdsRef.current.assignments[id];
+    delete dbIdsRef.current.sessions[id];
+    delete dbIdsRef.current.semester[id];
+  }, [courseData]);
 
   const updateCourse = useCallback((id: string, field: 'name' | 'instructor', value: string) => {
+    const dbId = dbIdsRef.current.courses[id];
+    if (dbId) {
+      apiFetch(`/courses/${dbId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ [field]: value }),
+      }).catch((err) => console.error('[updateCourse] API error:', err));
+    }
     setCourseData((prev) => ({
       ...prev,
       [id]: { ...prev[id], [field]: value },
@@ -252,9 +325,36 @@ export function AcadenceProvider({
   // ── Student mutations ───────────────────────────────────────────────────────
 
   const addStudent = useCallback((courseId: string, student: Omit<Student, 'scores'>) => {
+    const courseDbId = dbIdsRef.current.courses[courseId];
+    const semester = dbIdsRef.current.semester[courseId] || '2026-Fall';
+
+    // Step 1: find existing student or create a new one (idempotent)
+    const studentBody = {
+      name: student.name,
+      email: student.email,
+      student_id: student.id,
+      year: 1,
+      major: 'Undeclared',
+    };
+    apiFetch('/students/find-or-create', { method: 'POST', body: JSON.stringify(studentBody) })
+      .then((r) => r.json())
+      .then((s: any) => {
+        const studentDbId: number = s.id;
+        if (!studentDbId || !courseDbId) return;
+        dbIdsRef.current.students[student.id] = studentDbId;
+        // Step 2: enroll (idempotent — safe if already enrolled)
+        return apiFetch('/enrollments', {
+          method: 'POST',
+          body: JSON.stringify({ student_id: studentDbId, course_id: courseDbId, semester }),
+        });
+      })
+      .catch((err) => console.error('[addStudent] API error:', err));
+
+    // Optimistic local state update
     setCourseData((prev) => {
       const course = prev[courseId];
       if (!course) return prev;
+      if (course.students.some((s) => s.id === student.id)) return prev;
       const scores: Record<string, number> = {};
       course.assignments.forEach((a) => { scores[a.id] = 0; });
       return {
@@ -272,10 +372,13 @@ export function AcadenceProvider({
       let imported = 0;
       let skipped = 0;
       const logs: string[] = [];
+
+      // Compute result synchronously from current state, fire API in background
       setCourseData((prev) => {
         const course = prev[courseId];
         if (!course) return prev;
         const updatedStudents = [...course.students];
+        const toAdd: Omit<Student, 'scores'>[] = [];
         students.forEach((s, rowIndex) => {
           const exists = updatedStudents.some((ex) => ex.id === s.id);
           if (exists) {
@@ -284,12 +387,38 @@ export function AcadenceProvider({
             return;
           }
           const scores: Record<string, number> = {};
-          course.assignments.forEach((a) => { scores[a.id] = 100; });
+          course.assignments.forEach((a) => { scores[a.id] = 0; });
           updatedStudents.push({ ...s, scores });
+          toAdd.push(s);
           imported++;
         });
+
+        // Fire API calls for each new student in the background
+        const courseDbId = dbIdsRef.current.courses[courseId];
+        const semester = dbIdsRef.current.semester[courseId] || '2026-Fall';
+        toAdd.forEach((s) => {
+          // Use find-or-create so re-importing the same student_id is safe
+          apiFetch('/students/find-or-create', {
+            method: 'POST',
+            body: JSON.stringify({ name: s.name, email: s.email, student_id: s.id, year: 1, major: 'Undeclared' }),
+          })
+            .then((r) => r.json())
+            .then((found: any) => {
+              const studentDbId: number = found.id;
+              if (!studentDbId || !courseDbId) return;
+              dbIdsRef.current.students[s.id] = studentDbId;
+              // Enrollment is idempotent — safe even if already enrolled
+              return apiFetch('/enrollments', {
+                method: 'POST',
+                body: JSON.stringify({ student_id: studentDbId, course_id: courseDbId, semester }),
+              });
+            })
+            .catch((err) => console.error('[importStudents] API error:', err));
+        });
+
         return { ...prev, [courseId]: { ...course, students: updatedStudents } };
       });
+
       return { imported, skipped, logs };
     },
     []
@@ -297,26 +426,35 @@ export function AcadenceProvider({
 
   // ── Score mutations ─────────────────────────────────────────────────────────
 
-  const updateScore = useCallback((courseId: string, studentId: string, assignmentId: string, score: number) => {
-    setCourseData((prev) => {
-      const course = prev[courseId];
-      if (!course) return prev;
-      const students = course.students.map((s) =>
-        s.id === studentId ? { ...s, scores: { ...s.scores, [assignmentId]: score } } : s
-      );
-      const passRate = computeCoursePassRate({ ...course, students });
-      return {
-        ...prev,
-        [courseId]: { ...course, students, passRate },
-      };
-    });
-  }, []);
+  const updateScore = useCallback(
+    (courseId: string, studentId: string, assignmentId: string, score: number) => {
+      const studentDbId = dbIdsRef.current.students[studentId];
+      const assignmentDbId = dbIdsRef.current.assignments[courseId]?.[assignmentId];
+      if (studentDbId && assignmentDbId) {
+        apiFetch('/grades/upsert', {
+          method: 'POST',
+          body: JSON.stringify({ student_id: studentDbId, assignment_id: assignmentDbId, score }),
+        }).catch((err) => console.error('[updateScore] API error:', err));
+      }
+      setCourseData((prev) => {
+        const course = prev[courseId];
+        if (!course) return prev;
+        const students = course.students.map((s) =>
+          s.id === studentId ? { ...s, scores: { ...s.scores, [assignmentId]: score } } : s
+        );
+        const passRate = computeCoursePassRate({ ...course, students });
+        return { ...prev, [courseId]: { ...course, students, passRate } };
+      });
+    },
+    []
+  );
 
   const importGrades = useCallback(
     (courseId: string, grades: Array<{ studentName: string; assignmentName: string; score: number }>) => {
       let imported = 0;
       let skipped = 0;
       const logs: string[] = [];
+
       setCourseData((prev) => {
         const course = prev[courseId];
         if (!course) return prev;
@@ -341,9 +479,20 @@ export function AcadenceProvider({
           const constrained = Math.max(0, Math.min(assignment.maxPoints || 100, g.score));
           student.scores[assignment.id] = constrained;
           imported++;
+
+          // Fire API in background
+          const studentDbId = dbIdsRef.current.students[student.id];
+          const assignmentDbId = dbIdsRef.current.assignments[courseId]?.[assignment.id];
+          if (studentDbId && assignmentDbId) {
+            apiFetch('/grades/upsert', {
+              method: 'POST',
+              body: JSON.stringify({ student_id: studentDbId, assignment_id: assignmentDbId, score: constrained }),
+            }).catch((err) => console.error('[importGrades] API error:', err));
+          }
         });
         return { ...prev, [courseId]: { ...course, students } };
       });
+
       return { imported, skipped, logs };
     },
     []
@@ -352,26 +501,57 @@ export function AcadenceProvider({
   // ── Assignment mutations ────────────────────────────────────────────────────
 
   const addAssignment = useCallback((courseId: string, assignment: Omit<Assignment, 'id'>) => {
-    const newId = 'a' + Date.now();
-    setCourseData((prev) => {
-      const course = prev[courseId];
-      if (!course) return prev;
-      const students = course.students.map((s) => ({
-        ...s,
-        scores: { ...s.scores, [newId]: 0 },
-      }));
-      return {
-        ...prev,
-        [courseId]: {
-          ...course,
-          assignments: [...course.assignments, { ...assignment, id: newId }],
-          students,
-        },
-      };
-    });
+    const courseDbId = dbIdsRef.current.courses[courseId];
+    if (!courseDbId) {
+      // Optimistic only (no DB id yet — shouldn't happen after load)
+      const newId = 'a' + Date.now();
+      setCourseData((prev) => {
+        const course = prev[courseId];
+        if (!course) return prev;
+        const students = course.students.map((s) => ({ ...s, scores: { ...s.scores, [newId]: 0 } }));
+        return { ...prev, [courseId]: { ...course, assignments: [...course.assignments, { ...assignment, id: newId }], students } };
+      });
+      return;
+    }
+    const body = {
+      course_id: courseDbId,
+      name: assignment.name,
+      type: 'assignment',
+      max_score: assignment.maxPoints,
+      // DB stores weight as a 0–1 fraction; dashboard uses whole percentages → divide by 100.
+      weight: assignment.weight / 100,
+    };
+    apiFetch('/assignments', { method: 'POST', body: JSON.stringify(body) })
+      .then((r) => r.json())
+      .then((newA: any) => {
+        const frontendId = `a${newA.id}`;
+        if (!dbIdsRef.current.assignments[courseId]) dbIdsRef.current.assignments[courseId] = {};
+        dbIdsRef.current.assignments[courseId][frontendId] = newA.id;
+        setCourseData((prev) => {
+          const course = prev[courseId];
+          if (!course) return prev;
+          const students = course.students.map((s) => ({ ...s, scores: { ...s.scores, [frontendId]: 0 } }));
+          return {
+            ...prev,
+            [courseId]: {
+              ...course,
+              // API returns weight as fraction → convert back to percentage for the frontend.
+              assignments: [...course.assignments, { id: frontendId, name: newA.name, weight: Math.round(newA.weight * 100), maxPoints: newA.max_score }],
+              students,
+            },
+          };
+        });
+      })
+      .catch((err) => console.error('[addAssignment] API error:', err));
   }, []);
 
   const deleteAssignment = useCallback((courseId: string, assignmentId: string) => {
+    const dbId = dbIdsRef.current.assignments[courseId]?.[assignmentId];
+    if (dbId) {
+      apiFetch(`/assignments/${dbId}`, { method: 'DELETE' })
+        .catch((err) => console.error('[deleteAssignment] API error:', err));
+      delete dbIdsRef.current.assignments[courseId][assignmentId];
+    }
     setCourseData((prev) => {
       const course = prev[courseId];
       if (!course) return prev;
@@ -386,6 +566,14 @@ export function AcadenceProvider({
   }, []);
 
   const updateAssignment = useCallback((courseId: string, assignment: Assignment) => {
+    const dbId = dbIdsRef.current.assignments[courseId]?.[assignment.id];
+    if (dbId) {
+      apiFetch(`/assignments/${dbId}`, {
+        method: 'PUT',
+        // DB stores weight as 0–1 fraction; dashboard value is a whole percentage → divide.
+        body: JSON.stringify({ name: assignment.name, weight: assignment.weight / 100, max_score: assignment.maxPoints }),
+      }).catch((err) => console.error('[updateAssignment] API error:', err));
+    }
     setCourseData((prev) => {
       const course = prev[courseId];
       if (!course) return prev;
@@ -402,17 +590,37 @@ export function AcadenceProvider({
   // ── Attendance mutations ────────────────────────────────────────────────────
 
   const addSession = useCallback((courseId: string, session: Omit<Session, 'id' | 'records'>) => {
-    const newId = 's' + Date.now();
-    setAttendanceState((prev) => ({
-      ...prev,
-      [courseId]: {
-        sessions: [...(prev[courseId]?.sessions || []), { ...session, id: newId, records: {} }],
-      },
-    }));
+    const courseDbId = dbIdsRef.current.courses[courseId];
+    if (!courseDbId) return;
+    apiFetch('/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ course_id: courseDbId, name: session.name, date: session.date, time: session.time }),
+    })
+      .then((r) => r.json())
+      .then((newS: any) => {
+        const frontendId = `s${newS.id}`;
+        if (!dbIdsRef.current.sessions[courseId]) dbIdsRef.current.sessions[courseId] = {};
+        dbIdsRef.current.sessions[courseId][frontendId] = newS.id;
+        setAttendanceState((prev) => ({
+          ...prev,
+          [courseId]: {
+            sessions: [
+              ...(prev[courseId]?.sessions || []),
+              { id: frontendId, name: newS.name, date: newS.date, time: newS.time, records: {} },
+            ],
+          },
+        }));
+      })
+      .catch((err) => console.error('[addSession] API error:', err));
   }, []);
 
   const updateSession = useCallback(
     (courseId: string, sessionId: string, updates: { name?: string; date?: string; time?: string }) => {
+      const dbId = dbIdsRef.current.sessions[courseId]?.[sessionId];
+      if (dbId) {
+        apiFetch(`/sessions/${dbId}`, { method: 'PUT', body: JSON.stringify(updates) })
+          .catch((err) => console.error('[updateSession] API error:', err));
+      }
       setAttendanceState((prev) => ({
         ...prev,
         [courseId]: {
@@ -428,6 +636,14 @@ export function AcadenceProvider({
 
   const setAttendance = useCallback(
     (courseId: string, sessionId: string, studentId: string, status: AttendanceStatus) => {
+      const sessionDbId = dbIdsRef.current.sessions[courseId]?.[sessionId];
+      const studentDbId = dbIdsRef.current.students[studentId];
+      if (sessionDbId && studentDbId) {
+        apiFetch('/attendance', {
+          method: 'POST',
+          body: JSON.stringify({ session_id: sessionDbId, student_db_id: studentDbId, status }),
+        }).catch((err) => console.error('[setAttendance] API error:', err));
+      }
       setAttendanceState((prev) => ({
         ...prev,
         [courseId]: {
@@ -479,7 +695,11 @@ export function AcadenceProvider({
   // ── Profile mutations ───────────────────────────────────────────────────────
 
   const updateProfile = useCallback((updates: Partial<ProfileData>) => {
-    setProfileData((prev) => ({ ...prev, ...updates }));
+    setProfileData((prev) => {
+      const next = { ...prev, ...updates };
+      try { localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   }, []);
 
   const updateSettings = useCallback((updates: Partial<SettingsData>) => {
@@ -529,6 +749,7 @@ export function AcadenceProvider({
         attendanceState,
         profileData,
         settingsData,
+        isLoading,
         addCourse,
         deleteCourse,
         updateCourse,

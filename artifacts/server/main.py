@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from src.auth.clerk import _NoStudentException
 
 from src.routes.students import router as students_router
+from src.routes.sessions import router as sessions_router
 from src.routes.courses import router as courses_router
 from src.routes.enrollments import router as enrollments_router
 from src.routes.assignments import router as assignments_router
@@ -48,6 +49,7 @@ app.include_router(dashboard_router, prefix=prefix)
 app.include_router(me_router, prefix=prefix)
 app.include_router(import_export_router, prefix=prefix)
 app.include_router(reports_router, prefix=prefix)
+app.include_router(sessions_router, prefix=prefix)
 
 
 @app.get("/api/healthz")

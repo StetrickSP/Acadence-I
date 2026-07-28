@@ -182,6 +182,9 @@ def require_auth(request: Request) -> str:
     """FastAPI dependency: return verified Clerk user ID or raise 401.
 
     Uses full JWKS signature verification — forged tokens are rejected.
+    Dashboard routes (courses, grades, assignments, sessions, enrollments,
+    students) are all public and do not depend on this function, so no
+    bypass mechanism is needed here.
     """
     token = _get_token(request)
     if not token:

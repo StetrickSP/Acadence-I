@@ -99,14 +99,55 @@ def list_students(
 
 @router.post("/students", status_code=201)
 def create_student(body: CreateStudentBody, db: Session = Depends(get_db)):
+    from sqlalchemy.exc import IntegrityError
     row = StudentRow(
         name=body.name, email=body.email, student_id=body.student_id,
         year=body.year, major=body.major,
     )
     db.add(row)
-    db.commit()
-    db.refresh(row)
-    return _fmt_student(row, None)
+    try:
+        db.commit()
+        db.refresh(row)
+        return _fmt_student(row, None)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Student with this ID or email already exists")
+
+
+@router.post("/students/find-or-create", status_code=200)
+def find_or_create_student(body: CreateStudentBody, db: Session = Depends(get_db)):
+    """Find an existing student by student_id or email, or create a new one.
+
+    Returns the existing or newly created student row.  Safe to call multiple
+    times with the same input — always returns the canonical DB record.
+    """
+    from sqlalchemy.exc import IntegrityError
+    # Fast path: look up by the immutable student_id string (e.g. "STU001")
+    existing = db.query(StudentRow).filter(StudentRow.student_id == body.student_id).first()
+    if existing:
+        return _fmt_student(existing, None)
+    # Slow path: try by email (different student_id but same person)
+    existing = db.query(StudentRow).filter(StudentRow.email == body.email).first()
+    if existing:
+        return _fmt_student(existing, None)
+    # Not found — create
+    row = StudentRow(
+        name=body.name, email=body.email, student_id=body.student_id,
+        year=body.year, major=body.major,
+    )
+    db.add(row)
+    try:
+        db.commit()
+        db.refresh(row)
+        return _fmt_student(row, None)
+    except IntegrityError:
+        db.rollback()
+        # Race condition: another request created the row between our check and
+        # insert.  Re-query and return the winner.
+        existing = db.query(StudentRow).filter(StudentRow.student_id == body.student_id).first()
+        if existing:
+            return _fmt_student(existing, None)
+        raise HTTPException(status_code=409, detail="Could not find or create student")
 
 
 @router.get("/students/rankings")

@@ -1,6 +1,6 @@
 """Enrollment routes — list, create, delete."""
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -50,12 +50,39 @@ def list_enrollments(
     return [_fmt(e, sname, cname) for e, sname, cname in rows]
 
 
-@router.post("/enrollments", status_code=201)
+@router.post("/enrollments", status_code=200)
 def create_enrollment(body: CreateEnrollmentBody, db: Session = Depends(get_db)):
+    """Idempotent enrollment — returns the existing record if already enrolled.
+
+    Using 200 instead of 201 because the response may be an existing row.
+    Callers treat any 2xx as success.
+    """
+    from sqlalchemy.exc import IntegrityError
+    # Check for an existing enrollment first to avoid unnecessary write attempt
+    existing = db.query(EnrollmentRow).filter(
+        EnrollmentRow.student_id == body.student_id,
+        EnrollmentRow.course_id == body.course_id,
+    ).first()
+    if existing:
+        student = db.query(StudentRow).filter(StudentRow.id == body.student_id).first()
+        course = db.query(CourseRow).filter(CourseRow.id == body.course_id).first()
+        return _fmt(existing, student.name if student else None, course.name if course else None)
     row = EnrollmentRow(student_id=body.student_id, course_id=body.course_id, semester=body.semester)
     db.add(row)
-    db.commit()
-    db.refresh(row)
+    try:
+        db.commit()
+        db.refresh(row)
+    except IntegrityError:
+        db.rollback()
+        # Race condition: re-fetch the existing row
+        existing = db.query(EnrollmentRow).filter(
+            EnrollmentRow.student_id == body.student_id,
+            EnrollmentRow.course_id == body.course_id,
+        ).first()
+        if existing:
+            row = existing
+        else:
+            raise HTTPException(status_code=409, detail="Could not create enrollment")
     student = db.query(StudentRow).filter(StudentRow.id == body.student_id).first()
     course = db.query(CourseRow).filter(CourseRow.id == body.course_id).first()
     return _fmt(row, student.name if student else None, course.name if course else None)

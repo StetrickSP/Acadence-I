@@ -98,3 +98,35 @@ def delete_grade(grade_id: int, db: Session = Depends(get_db)):
     if g:
         db.delete(g)
         db.commit()
+
+
+class UpsertGradeBody(BaseModel):
+    student_id: int
+    assignment_id: int
+    score: float
+    feedback: Optional[str] = None
+
+
+@router.post("/grades/upsert", status_code=200)
+def upsert_grade(body: UpsertGradeBody, db: Session = Depends(get_db)):
+    """Create or update a grade row for a (student, assignment) pair."""
+    g = db.query(GradeRow).filter(
+        GradeRow.student_id == body.student_id,
+        GradeRow.assignment_id == body.assignment_id,
+    ).first()
+    if g:
+        g.score = str(body.score)
+        if body.feedback is not None:
+            g.feedback = body.feedback
+    else:
+        g = GradeRow(
+            student_id=body.student_id,
+            assignment_id=body.assignment_id,
+            score=str(body.score),
+            feedback=body.feedback,
+        )
+        db.add(g)
+    db.commit()
+    db.refresh(g)
+    asgn = db.query(AssignmentRow).filter(AssignmentRow.id == body.assignment_id).first()
+    return _fmt(g, asgn)

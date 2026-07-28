@@ -95,6 +95,13 @@ def create_course(body: CreateCourseBody, db: Session = Depends(get_db)):
     return _fmt_course(row, 0, None)
 
 
+# NOTE: /courses/full must be declared BEFORE /courses/{course_id} so Starlette
+# does not interpret the literal "full" as a course_id path parameter.
+@router.get("/courses/full")
+def get_courses_full_early(db: Session = Depends(get_db)):
+    return get_courses_full(db)
+
+
 @router.get("/courses/{course_id}")
 def get_course(course_id: int, db: Session = Depends(get_db)):
     c = db.query(CourseRow).filter(CourseRow.id == course_id).first()
@@ -196,6 +203,110 @@ def get_course_students(course_id: int, db: Session = Depends(get_db)):
         }
         for s in rows
     ]
+
+
+def get_courses_full(db: Session):
+    """Return all courses with assignments, enrolled students+grades, and sessions.
+
+    This single endpoint is used by the faculty dashboard to hydrate its
+    entire in-memory state on mount.  Response shape mirrors the frontend
+    AcadenceContext data model so the client can rebuild courseData and
+    attendanceState in one pass.
+    """
+    from src.db.models import SessionRow, AttendanceRecordRow
+
+    courses = db.query(CourseRow).order_by(CourseRow.name).all()
+    result = []
+    for c in courses:
+        # --- assignments ---
+        assignments_rows = (
+            db.query(AssignmentRow)
+            .filter(AssignmentRow.course_id == c.id)
+            .order_by(AssignmentRow.created_at)
+            .all()
+        )
+        assignments_out = [
+            {
+                "id": a.id,
+                "frontend_id": f"a{a.id}",
+                "name": a.name,
+                # DB stores weight as a fraction (0–1); the dashboard uses whole
+                # percentages (0–100), so multiply on read.
+                "weight": round(float(a.weight) * 100),
+                "maxPoints": float(a.max_score),
+                "type": a.type,
+            }
+            for a in assignments_rows
+        ]
+
+        # --- enrolled students with scores ---
+        enrolled = (
+            db.query(StudentRow, EnrollmentRow)
+            .join(EnrollmentRow, EnrollmentRow.student_id == StudentRow.id)
+            .filter(EnrollmentRow.course_id == c.id)
+            .all()
+        )
+        students_out = []
+        for s, enr in enrolled:
+            scores: dict = {}
+            for a in assignments_rows:
+                grade = (
+                    db.query(GradeRow)
+                    .filter(GradeRow.student_id == s.id, GradeRow.assignment_id == a.id)
+                    .first()
+                )
+                if grade is not None:
+                    scores[f"a{a.id}"] = float(grade.score)
+            students_out.append({
+                "db_id": s.id,
+                "id": s.student_id,          # e.g. "STU001" – used as frontend key
+                "name": s.name,
+                "email": s.email,
+                "status": "Enrolled",
+                "scores": scores,
+            })
+
+        # --- sessions with attendance records ---
+        sessions_rows = (
+            db.query(SessionRow)
+            .filter(SessionRow.course_id == c.id)
+            .order_by(SessionRow.date, SessionRow.created_at)
+            .all()
+        )
+        sessions_out = []
+        for sess in sessions_rows:
+            records: dict = {}
+            att_rows = (
+                db.query(AttendanceRecordRow, StudentRow)
+                .join(StudentRow, AttendanceRecordRow.student_id == StudentRow.id)
+                .filter(AttendanceRecordRow.session_id == sess.id)
+                .all()
+            )
+            for rec, stu in att_rows:
+                records[stu.student_id] = rec.status
+            sessions_out.append({
+                "db_id": sess.id,
+                "id": f"s{sess.id}",         # frontend session key
+                "name": sess.name,
+                "date": sess.date,
+                "time": sess.time_slot,
+                "records": records,
+            })
+
+        result.append({
+            "db_id": c.id,
+            "code": c.code.lower(),          # used as frontend courseId key
+            "name": c.name,
+            "instructor": c.instructor or "",
+            "semester": c.semester,
+            "credits": c.credits,
+            "grading_scheme": c.grading_scheme or "weighted",
+            "assignments": assignments_out,
+            "students": students_out,
+            "sessions": sessions_out,
+        })
+
+    return {"courses": result}
 
 
 @router.get("/courses/{course_id}/stats")
