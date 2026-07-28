@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter, Redirect, useLocation } from 'wouter';
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 
@@ -24,6 +24,7 @@ import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
 import StudentPortal from '@/pages/student-portal';
 import ClaimPage from '@/pages/claim';
+import RolePickerPage, { ROLE_SESSION_KEY } from '@/pages/role-picker';
 
 // ── Clerk setup ────────────────────────────────────────────────────────────────
 
@@ -124,6 +125,10 @@ function ClerkQueryClientCacheInvalidator() {
       const userId = user?.id ?? null;
       if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
         qc.clear();
+        // Clear the session role so the picker re-appears on next sign-in
+        if (userId === null) {
+          sessionStorage.removeItem(ROLE_SESSION_KEY);
+        }
       }
       prevUserIdRef.current = userId;
     });
@@ -181,18 +186,29 @@ function SignUpPage() {
 
 // ── Route guards ───────────────────────────────────────────────────────────────
 
-/** Root landing: signed-in → /dashboard, signed-out → Home page */
+/** Root landing: signed-in → /role-picker (if no role chosen) or /dashboard, signed-out → Home page */
 function HomeRedirect() {
+  const roleChosen = !!sessionStorage.getItem(ROLE_SESSION_KEY);
   return (
     <>
       <Show when="signed-in">
-        <Redirect to="/dashboard" />
+        <Redirect to={roleChosen ? '/dashboard' : '/role-picker'} />
       </Show>
       <Show when="signed-out">
         <Home />
       </Show>
     </>
   );
+}
+
+/** Role picker guard: only accessible when signed in and no role chosen yet */
+function RolePickerGuard() {
+  const { isLoaded, isSignedIn } = useUser();
+  if (!isLoaded) return <LoadingScreen />;
+  if (!isSignedIn) return <Redirect to="/sign-in" />;
+  // If they already picked a role (e.g. back-navigation), send to dashboard
+  if (sessionStorage.getItem(ROLE_SESSION_KEY)) return <Redirect to="/dashboard" />;
+  return <RolePickerPage />;
 }
 
 /** Loading spinner for identity resolution */
@@ -255,6 +271,7 @@ function Router() {
         <Route path="/sign-up/*?" component={SignUpPage} />
         {/* Legacy /login redirect */}
         <Route path="/login" component={() => <Redirect to="/sign-in" />} />
+        <Route path="/role-picker" component={RolePickerGuard} />
         <Route path="/dashboard" component={DashboardOrPortal} />
         <Route path="/claim" component={ClaimPage} />
         <Route path="/students/:id" component={() => <AdminRoute component={StudentDetail} />} />
