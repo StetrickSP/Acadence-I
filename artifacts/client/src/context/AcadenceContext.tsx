@@ -163,6 +163,10 @@ export interface AcadenceContextType {
   // Profile mutations
   updateProfile: (updates: Partial<ProfileData>) => void;
   updateSettings: (updates: Partial<SettingsData>) => void;
+  // Student read helpers
+  getStudentCourses: (studentId: string) => { courseId: string; course: Course }[];
+  getStudentScores: (studentId: string, courseId: string) => { assignment: Assignment; score: number | undefined }[];
+  getStudentAttendance: (studentId: string, courseId: string) => { session: Session; status: AttendanceStatus | undefined }[];
 }
 
 // ── Context ────────────────────────────────────────────────────────────────────
@@ -482,6 +486,42 @@ export function AcadenceProvider({
     setSettingsData((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // ── Student read helpers ────────────────────────────────────────────────────
+
+  const getStudentCourses = useCallback(
+    (studentId: string) =>
+      Object.entries(courseData)
+        .filter(([, course]) =>
+          course.students.some((s) => s.id === studentId && s.status === 'Enrolled')
+        )
+        .map(([courseId, course]) => ({ courseId, course })),
+    [courseData]
+  );
+
+  const getStudentScores = useCallback(
+    (studentId: string, courseId: string) => {
+      const course = courseData[courseId];
+      if (!course) return [];
+      const student = course.students.find((s) => s.id === studentId);
+      return course.assignments.map((a) => ({
+        assignment: a,
+        score: student?.scores[a.id],
+      }));
+    },
+    [courseData]
+  );
+
+  const getStudentAttendance = useCallback(
+    (studentId: string, courseId: string) => {
+      const sessions = attendanceState[courseId]?.sessions ?? [];
+      return sessions.map((session) => ({
+        session,
+        status: session.records[studentId] as AttendanceStatus | undefined,
+      }));
+    },
+    [attendanceState]
+  );
+
   return (
     <AcadenceContext.Provider
       value={{
@@ -505,6 +545,9 @@ export function AcadenceProvider({
         updateAttendanceRate,
         updateProfile,
         updateSettings,
+        getStudentCourses,
+        getStudentScores,
+        getStudentAttendance,
       }}
     >
       {children}

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useUser, useClerk } from '@clerk/react';
+import { useLocation } from 'wouter';
+import { useCustomAuth } from '@/context/AuthContext';
 import {
   Home, User, Menu, X, ChevronLeft, ChevronRight,
   LogOut, Sun, Moon, GraduationCap,
 } from 'lucide-react';
-import { AcadenceProvider } from '@/context/AcadenceContext';
 import { HomeView } from '@/components/acadence/HomeView';
 import { CourseView } from '@/components/acadence/CourseView';
 import { ProfileView } from '@/components/acadence/ProfileView';
@@ -180,8 +180,8 @@ function Sidebar({
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { currentUser, logout } = useCustomAuth();
+  const [, navigate] = useLocation();
 
   const [currentView, setCurrentView] = useState<AppView>('home');
   const [selectedCourse, setSelectedCourse] = useState<string>('cs301');
@@ -189,9 +189,9 @@ export default function Dashboard() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
-  // Clerk-derived user info
-  const displayName = user?.fullName || user?.firstName || 'Faculty User';
-  const displayEmail = user?.primaryEmailAddress?.emailAddress || 'faculty@university.edu';
+  // Auth-derived user info
+  const displayName = (currentUser?.role === 'teacher' ? currentUser.name : undefined) || 'Faculty User';
+  const displayEmail = currentUser?.email || 'faculty@university.edu';
   const displayInitials = getInitials(displayName);
 
   // Sync dark mode to body class (as the Canva HTML prototype does)
@@ -207,14 +207,11 @@ export default function Dashboard() {
   };
 
   const handleSignOut = () => {
-    signOut({ redirectUrl: '/' });
+    logout();
+    navigate('/login');
   };
 
   return (
-    <AcadenceProvider
-      initialProfileName={displayName}
-      initialSettingsEmail={displayEmail}
-    >
       <div className={`w-full min-h-screen flex relative bg-slate-50 ${darkMode ? 'dark-mode' : ''}`}>
         {/* Mobile hamburger — shown only on small screens */}
         <button
@@ -267,6 +264,5 @@ export default function Dashboard() {
           </div>
         </main>
       </div>
-    </AcadenceProvider>
   );
 }
