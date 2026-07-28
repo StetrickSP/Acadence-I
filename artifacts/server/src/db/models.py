@@ -22,8 +22,8 @@ class StudentRow(Base):
     clerk_user_id = Column("clerk_user_id", Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
 
-    enrollments = relationship("EnrollmentRow", back_populates="student", passive_deletes=True)
-    grades = relationship("GradeRow", back_populates="student", passive_deletes=True)
+    enrollments = relationship("EnrollmentRow", back_populates="student")
+    grades = relationship("GradeRow", back_populates="student")
 
 
 class CourseRow(Base):
@@ -37,11 +37,10 @@ class CourseRow(Base):
     instructor = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     grading_scheme = Column("grading_scheme", Text, nullable=True, default="weighted")
-    owner_clerk_id = Column("owner_clerk_id", Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
 
-    enrollments = relationship("EnrollmentRow", back_populates="course", passive_deletes=True)
-    assignments = relationship("AssignmentRow", back_populates="course", cascade="all, delete-orphan")
+    enrollments = relationship("EnrollmentRow", back_populates="course")
+    assignments = relationship("AssignmentRow", back_populates="course")
 
 
 class EnrollmentRow(Base):
@@ -71,7 +70,7 @@ class AssignmentRow(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
 
     course = relationship("CourseRow", back_populates="assignments")
-    grades = relationship("GradeRow", back_populates="assignment", cascade="all, delete-orphan")
+    grades = relationship("GradeRow", back_populates="assignment")
 
 
 class GradeRow(Base):
@@ -86,28 +85,3 @@ class GradeRow(Base):
 
     student = relationship("StudentRow", back_populates="grades")
     assignment = relationship("AssignmentRow", back_populates="grades")
-
-
-class SessionRow(Base):
-    __tablename__ = "sessions"
-
-    id = Column(Integer, primary_key=True)
-    course_id = Column("course_id", Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
-    name = Column(Text, nullable=False)
-    date = Column(Text, nullable=False)
-    time_slot = Column("time_slot", Text, nullable=True)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
-
-    attendance_records = relationship("AttendanceRecordRow", back_populates="session", cascade="all, delete-orphan")
-
-
-class AttendanceRecordRow(Base):
-    __tablename__ = "attendance_records"
-
-    id = Column(Integer, primary_key=True)
-    session_id = Column("session_id", Integer, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
-    student_id = Column("student_id", Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    status = Column(Text, nullable=False)  # present | absent | late | excused
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
-
-    session = relationship("SessionRow", back_populates="attendance_records")

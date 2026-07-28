@@ -1,40 +1,136 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import type {
   CourseData, AttendanceState, ProfileData, SettingsData,
   Course, Student, Assignment, Session, AttendanceStatus,
 } from '@/lib/acadence-utils';
-import { computeCoursePassRate } from '@/lib/acadence-utils';
+import { computeCoursePassRate, computeAverageGpa } from '@/lib/acadence-utils';
 
-// ── API helpers ───────────────────────────────────────────────────────────────
+// ── Initial data (mirrors HTML prototype) ─────────────────────────────────────
 
-const BASE = (import.meta.env.BASE_URL || '').replace(/\/$/, '');
-const API = `${BASE}/api`;
+const INITIAL_COURSE_DATA: CourseData = {
+  cs301: {
+    name: 'Algorithms',
+    instructor: 'Dr. Nguyen · Monday & Wednesday · Room B-204',
+    passRate: '87%',
+    attendanceRate: '92%',
+    nextItem: 'Final project',
+    assignments: [
+      { id: 'a1', name: 'Assignment', weight: 30, maxPoints: 100 },
+      { id: 'a2', name: 'Midterm', weight: 30, maxPoints: 100 },
+      { id: 'a3', name: 'Final', weight: 40, maxPoints: 100 },
+    ],
+    students: [
+      { id: 'STU001', name: 'Nguyen Van A', email: 'nva@university.edu', status: 'Enrolled', scores: { a1: 92, a2: 88, a3: 85 } },
+      { id: 'STU002', name: 'Tran Thi B', email: 'ttb@university.edu', status: 'Enrolled', scores: { a1: 70, a2: 62, a3: 68 } },
+      { id: 'STU003', name: 'Le Hoang C', email: 'lhc@university.edu', status: 'Not Enrolled', scores: { a1: 52, a2: 45, a3: 40 } },
+      { id: 'STU004', name: 'Pham Minh D', email: 'pmd@university.edu', status: 'Enrolled', scores: { a1: 85, a2: 78, a3: 82 } },
+    ],
+  },
+  ds201: {
+    name: 'Data Analysis',
+    instructor: 'Prof. Tran · Tuesday & Thursday · Data Lab 3',
+    passRate: '81%',
+    attendanceRate: '86%',
+    nextItem: 'Data lab review',
+    assignments: [
+      { id: 'a1', name: 'Assignment', weight: 30, maxPoints: 100 },
+      { id: 'a2', name: 'Midterm', weight: 30, maxPoints: 100 },
+      { id: 'a3', name: 'Final', weight: 40, maxPoints: 100 },
+    ],
+    students: [
+      { id: 'STU002', name: 'Tran Thi B', email: 'ttb@university.edu', status: 'Enrolled', scores: { a1: 84, a2: 77, a3: 80 } },
+      { id: 'STU005', name: 'Vo Thanh E', email: 'vte@university.edu', status: 'Enrolled', scores: { a1: 94, a2: 91, a3: 93 } },
+      { id: 'STU006', name: 'Doan Kim F', email: 'dkf@university.edu', status: 'Enrolled', scores: { a1: 73, a2: 69, a3: 75 } },
+      { id: 'STU007', name: 'Bui Anh G', email: 'bag@university.edu', status: 'Not Enrolled', scores: { a1: 65, a2: 72, a3: 68 } },
+    ],
+  },
+  se401: {
+    name: 'Software Engineering',
+    instructor: 'Dr. Le · Tuesday & Friday · Innovation Studio',
+    passRate: '91%',
+    attendanceRate: '90%',
+    nextItem: 'Sprint demonstration',
+    assignments: [
+      { id: 'a1', name: 'Assignment', weight: 30, maxPoints: 100 },
+      { id: 'a2', name: 'Midterm', weight: 30, maxPoints: 100 },
+      { id: 'a3', name: 'Final', weight: 40, maxPoints: 100 },
+    ],
+    students: [
+      { id: 'STU001', name: 'Nguyen Van A', email: 'nva@university.edu', status: 'Enrolled', scores: { a1: 90, a2: 86, a3: 89 } },
+      { id: 'STU004', name: 'Pham Minh D', email: 'pmd@university.edu', status: 'Enrolled', scores: { a1: 82, a2: 79, a3: 84 } },
+      { id: 'STU008', name: 'Hoang Thu H', email: 'hth@university.edu', status: 'Enrolled', scores: { a1: 88, a2: 90, a3: 92 } },
+      { id: 'STU009', name: 'Ngo Duc I', email: 'ndi@university.edu', status: 'Not Enrolled', scores: { a1: 76, a2: 81, a3: 78 } },
+    ],
+  },
+  ai501: {
+    name: 'Machine Learning',
+    instructor: 'Dr. Pham · Wednesday & Friday · AI Research Lab',
+    passRate: '93%',
+    attendanceRate: '94%',
+    nextItem: 'Model evaluation',
+    assignments: [
+      { id: 'a1', name: 'Assignment', weight: 30, maxPoints: 100 },
+      { id: 'a2', name: 'Midterm', weight: 30, maxPoints: 100 },
+      { id: 'a3', name: 'Final', weight: 40, maxPoints: 100 },
+    ],
+    students: [
+      { id: 'STU005', name: 'Vo Thanh E', email: 'vte@university.edu', status: 'Enrolled', scores: { a1: 96, a2: 92, a3: 95 } },
+      { id: 'STU010', name: 'Dang Lan K', email: 'dlk@university.edu', status: 'Enrolled', scores: { a1: 89, a2: 85, a3: 91 } },
+      { id: 'STU011', name: 'Phan Quang L', email: 'pql@university.edu', status: 'Not Enrolled', scores: { a1: 78, a2: 82, a3: 80 } },
+      { id: 'STU012', name: 'Mai Ngoc M', email: 'mnm@university.edu', status: 'Enrolled', scores: { a1: 87, a2: 90, a3: 88 } },
+    ],
+  },
+};
 
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(`${API}${path}`, {
-    credentials: 'include',
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-  });
-}
-
-/** "CS-301" → "cs301", "MATH 201" → "math201" */
-function codeToKey(code: string): string {
-  return code.replace(/[-\s]/g, '').toLowerCase();
-}
-
-// ── Default profile/settings (overridden by Clerk data) ───────────────────────
+const INITIAL_ATTENDANCE: AttendanceState = {
+  cs301: {
+    sessions: [
+      {
+        id: 's1', name: 'Lecture 1: Intro to Complexities', date: '2026-07-13', time: '09:00 - 11:00',
+        records: { STU001: 'present', STU002: 'present', STU003: 'absent', STU004: 'present' },
+      },
+      {
+        id: 's2', name: 'Lecture 2: Sorting and Searching', date: '2026-07-20', time: '09:00 - 11:00',
+        records: { STU001: 'present', STU002: 'absent', STU003: 'absent', STU004: 'late' },
+      },
+    ],
+  },
+  ds201: {
+    sessions: [
+      {
+        id: 's1', name: 'Lab 1: Python Review', date: '2026-07-14', time: '13:30 - 15:30',
+        records: { STU002: 'present', STU005: 'present', STU006: 'present', STU007: 'absent' },
+      },
+    ],
+  },
+  se401: {
+    sessions: [
+      {
+        id: 's1', name: 'Seminar 1: SDLC Methodologies', date: '2026-07-14', time: '10:00 - 12:00',
+        records: { STU001: 'present', STU004: 'present', STU008: 'present', STU009: 'late' },
+      },
+    ],
+  },
+  ai501: {
+    sessions: [
+      {
+        id: 's1', name: 'Introduction to Supervised Learning', date: '2026-07-15', time: '08:30 - 10:30',
+        records: { STU005: 'present', STU010: 'present', STU011: 'absent', STU012: 'present' },
+      },
+    ],
+  },
+};
 
 const INITIAL_PROFILE: ProfileData = {
-  name: 'Instructor',
+  name: 'Dr. Nguyen Minh Tuan',
   avatarImg: null,
-  avatarInitials: 'IN',
-  office: '',
-  subject: '',
+  avatarInitials: 'NT',
+  office: 'B-204',
+  subject: 'Computer Science',
 };
 
 const INITIAL_SETTINGS: SettingsData = {
-  email: '',
+  email: 'nguyen.tuan@university.edu',
   password: '••••••••',
 };
 
@@ -45,9 +141,6 @@ export interface AcadenceContextType {
   attendanceState: AttendanceState;
   profileData: ProfileData;
   settingsData: SettingsData;
-  loading: boolean;
-  error: string | null;
-  refreshData: () => void;
   // Course mutations
   addCourse: (id: string, course: Omit<Course, 'assignments' | 'students'> & { assignments?: Assignment[]; students?: Student[] }) => void;
   deleteCourse: (id: string) => void;
@@ -89,8 +182,8 @@ export function AcadenceProvider({
   initialProfileName?: string;
   initialSettingsEmail?: string;
 }) {
-  const [courseData, setCourseData] = useState<CourseData>({});
-  const [attendanceState, setAttendanceState] = useState<AttendanceState>({});
+  const [courseData, setCourseData] = useState<CourseData>(INITIAL_COURSE_DATA);
+  const [attendanceState, setAttendanceState] = useState<AttendanceState>(INITIAL_ATTENDANCE);
   const [profileData, setProfileData] = useState<ProfileData>({
     ...INITIAL_PROFILE,
     name: initialProfileName || INITIAL_PROFILE.name,
@@ -102,362 +195,76 @@ export function AcadenceProvider({
     ...INITIAL_SETTINGS,
     email: initialSettingsEmail || INITIAL_SETTINGS.email,
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // ── DB ID maps (string context IDs ↔ integer DB PKs) ──────────────────────
-  // courseKey ("cs301") → DB course.id
-  const courseDbIdMap = useRef<Record<string, number>>({});
-  // student_id string ("S001") → DB students.id
-  const studentDbIdMap = useRef<Record<string, number>>({});
-  // `${dbStudentId}:${dbAssignmentId}` → DB grades.id
-  const gradeIdMap = useRef<Record<string, number>>({});
-  // `${dbSessionId}:${dbStudentId}` → DB attendance_records.id
-  const attendRecordIdMap = useRef<Record<string, number>>({});
-
-  // ── Data loader ──────────────────────────────────────────────────────────────
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await apiFetch('/courses/full');
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
-      const snapshot: any[] = await res.json();
-
-      const newCourseData: CourseData = {};
-      const newAttendance: AttendanceState = {};
-      const newCourseDbIdMap: Record<string, number> = {};
-      const newStudentDbIdMap: Record<string, number> = {};
-      const newGradeIdMap: Record<string, number> = {};
-      const newAttendRecordIdMap: Record<string, number> = {};
-
-      for (const c of snapshot) {
-        const key = codeToKey(c.code);
-        newCourseDbIdMap[key] = c.id;
-
-        // Build a fast lookup: dbStudentId → student_id_str
-        const dbIdToStrId: Record<number, string> = {};
-        for (const s of c.students) {
-          dbIdToStrId[s.id] = s.student_id;
-          newStudentDbIdMap[s.student_id] = s.id;
-        }
-
-        // Map assignments (weight: decimal → percentage integer)
-        const assignments: Assignment[] = (c.assignments || []).map((a: any) => ({
-          id: String(a.id),
-          name: a.name,
-          weight: Math.round(parseFloat(a.weight) * 100),
-          maxPoints: parseFloat(a.max_score),
-        }));
-
-        // Build grade lookup: dbStudentId → assignmentId → score
-        const gradeByStudAsgn: Record<string, number> = {};
-        for (const g of (c.grades || [])) {
-          const k = `${g.student_db_id}:${g.assignment_id}`;
-          gradeByStudAsgn[k] = g.score;
-          newGradeIdMap[`${g.student_db_id}:${g.assignment_id}`] = g.id;
-        }
-
-        // Build students
-        const students: Student[] = (c.students || []).map((s: any) => {
-          const scores: Record<string, number> = {};
-          for (const a of assignments) {
-            const gradeKey = `${s.id}:${a.id}`;
-            if (gradeByStudAsgn[gradeKey] !== undefined) {
-              scores[a.id] = gradeByStudAsgn[gradeKey];
-            }
-          }
-          return {
-            id: s.student_id,
-            name: s.name,
-            email: s.email,
-            status: 'Enrolled' as const,
-            scores,
-          };
-        });
-
-        const mockCourse: Course = { name: c.name, instructor: c.instructor, assignments, students };
-        newCourseData[key] = {
-          name: c.name,
-          instructor: c.instructor,
-          passRate: computeCoursePassRate(mockCourse),
-          attendanceRate: '—',
-          nextItem: '',
-          assignments,
-          students,
-        };
-
-        // Build sessions with attendance records
-        const sessions: Session[] = (c.sessions || []).map((s: any) => {
-          const records: Record<string, AttendanceStatus> = {};
-          for (const r of (s.attendance || [])) {
-            const sidStr = r.student_id_str ?? dbIdToStrId[r.student_db_id];
-            if (sidStr) {
-              records[sidStr] = r.status as AttendanceStatus;
-              newAttendRecordIdMap[`${s.id}:${r.student_db_id}`] = r.id;
-            }
-          }
-          return {
-            id: String(s.id),
-            name: s.name,
-            date: s.date,
-            time: s.time_slot || '',
-            records,
-          };
-        });
-        newAttendance[key] = { sessions };
-      }
-
-      courseDbIdMap.current = newCourseDbIdMap;
-      studentDbIdMap.current = newStudentDbIdMap;
-      gradeIdMap.current = newGradeIdMap;
-      attendRecordIdMap.current = newAttendRecordIdMap;
-
-      setCourseData(newCourseData);
-      setAttendanceState(newAttendance);
-      setLoading(false);
-    } catch (err: any) {
-      console.error('[AcadenceContext] loadData error:', err);
-      setError(err?.message ?? 'Failed to load data');
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const refreshData = useCallback(() => {
-    loadData();
-  }, [loadData]);
-
-  // ── Helpers ───────────────────────────────────────────────────────────────────
-
-  /** Find or create a student in the DB, returns their DB id. */
-  async function ensureStudentInDb(student: Omit<Student, 'scores'>): Promise<number | null> {
-    // Check cache first
-    const cached = studentDbIdMap.current[student.id];
-    if (cached) return cached;
-
-    // Try to look up by student_id string
-    try {
-      const searchRes = await apiFetch(`/students?student_id_str=${encodeURIComponent(student.id)}`);
-      if (searchRes.ok) {
-        const list: any[] = await searchRes.json();
-        if (list.length > 0) {
-          studentDbIdMap.current[student.id] = list[0].id;
-          return list[0].id;
-        }
-      }
-    } catch {}
-
-    // Create new student
-    try {
-      const createRes = await apiFetch('/students', {
-        method: 'POST',
-        body: JSON.stringify({
-          student_id: student.id,
-          name: student.name,
-          email: student.email,
-          year: 1,
-          major: 'Undeclared',
-        }),
-      });
-      if (createRes.ok) {
-        const s = await createRes.json();
-        studentDbIdMap.current[student.id] = s.id;
-        return s.id;
-      }
-      // Conflict — search again
-      const searchRes2 = await apiFetch(`/students?student_id_str=${encodeURIComponent(student.id)}`);
-      if (searchRes2.ok) {
-        const list2: any[] = await searchRes2.json();
-        if (list2.length > 0) {
-          studentDbIdMap.current[student.id] = list2[0].id;
-          return list2[0].id;
-        }
-      }
-    } catch (e) {
-      console.error('[AcadenceContext] ensureStudentInDb error:', e);
-    }
-    return null;
-  }
-
-  // ── Course mutations ──────────────────────────────────────────────────────────
+  // ── Course mutations ────────────────────────────────────────────────────────
 
   const addCourse = useCallback((id: string, courseInit: Partial<Course>) => {
-    const key = codeToKey(id);
-    const defaultAssignments: Assignment[] = [
-      { id: 'tmp-a1', name: 'Assignment', weight: 30, maxPoints: 100 },
-      { id: 'tmp-a2', name: 'Midterm', weight: 30, maxPoints: 100 },
-      { id: 'tmp-a3', name: 'Final', weight: 40, maxPoints: 100 },
-    ];
-
-    // Optimistic update
-    let prevCourseData: CourseData;
-    let prevAttendance: AttendanceState;
+    const normalizedId = id.toLowerCase().trim();
     setCourseData((prev) => {
-      prevCourseData = prev;
-      if (prev[key]) return prev;
+      if (prev[normalizedId]) return prev;
       return {
         ...prev,
-        [key]: {
+        [normalizedId]: {
           name: courseInit.name || '',
           instructor: courseInit.instructor || '',
           passRate: '100%',
           attendanceRate: '100%',
-          nextItem: '',
-          assignments: defaultAssignments,
-          students: [],
+          nextItem: 'Initial Orientation',
+          assignments: [
+            { id: 'a1', name: 'Assignment', weight: 30, maxPoints: 100 },
+            { id: 'a2', name: 'Midterm', weight: 30, maxPoints: 100 },
+            { id: 'a3', name: 'Final', weight: 40, maxPoints: 100 },
+          ],
+          students: [
+            { id: 'STU001', name: 'Nguyen Van A', email: 'nva@university.edu', status: 'Enrolled', scores: { a1: 100, a2: 100, a3: 100 } },
+            { id: 'STU002', name: 'Tran Thi B', email: 'ttb@university.edu', status: 'Enrolled', scores: { a1: 100, a2: 100, a3: 100 } },
+          ],
         },
       };
     });
-    setAttendanceState((prev) => {
-      prevAttendance = prev;
-      return { ...prev, [key]: { sessions: [] } };
-    });
-
-    // API call
-    (async () => {
-      try {
-        const res = await apiFetch('/courses', {
-          method: 'POST',
-          body: JSON.stringify({
-            code: id.toUpperCase(),
-            name: courseInit.name || '',
-            instructor: courseInit.instructor || '',
-            credits: 3,
-            semester: '2025-2',
-            grading_scheme: 'weighted',
-          }),
-        });
-        if (!res.ok) throw new Error(`Failed to create course: ${res.status}`);
-        const created = await res.json();
-        courseDbIdMap.current[key] = created.id;
-
-        // Create default assignments in DB
-        const dbAssignments: Assignment[] = [];
-        for (const a of defaultAssignments) {
-          const aRes = await apiFetch('/assignments', {
-            method: 'POST',
-            body: JSON.stringify({
-              course_id: created.id,
-              name: a.name,
-              type: 'homework',
-              max_score: a.maxPoints,
-              weight: a.weight / 100,
-            }),
-          });
-          if (aRes.ok) {
-            const dbA = await aRes.json();
-            dbAssignments.push({ id: String(dbA.id), name: dbA.name, weight: Math.round(parseFloat(dbA.weight) * 100), maxPoints: parseFloat(dbA.max_score) });
-          }
-        }
-
-        // Swap tmp assignment IDs for real DB IDs
-        if (dbAssignments.length > 0) {
-          setCourseData((prev) => ({
-            ...prev,
-            [key]: { ...prev[key], assignments: dbAssignments },
-          }));
-        }
-      } catch (e) {
-        console.error('[AcadenceContext] addCourse API error:', e);
-        setCourseData(prevCourseData!);
-        setAttendanceState(prevAttendance!);
-      }
-    })();
+    setAttendanceState((prev) => ({
+      ...prev,
+      [normalizedId]: { sessions: [] },
+    }));
   }, []);
 
   const deleteCourse = useCallback((id: string) => {
-    let prevCourseData: CourseData;
-    let prevAttendance: AttendanceState;
-
     setCourseData((prev) => {
-      prevCourseData = prev;
       if (Object.keys(prev).length <= 1) return prev;
       const next = { ...prev };
       delete next[id];
       return next;
     });
     setAttendanceState((prev) => {
-      prevAttendance = prev;
       const next = { ...prev };
       delete next[id];
       return next;
     });
-
-    const dbId = courseDbIdMap.current[id];
-    if (!dbId) return;
-    (async () => {
-      try {
-        const res = await apiFetch(`/courses/${dbId}`, { method: 'DELETE' });
-        if (!res.ok && res.status !== 204) throw new Error(`Failed to delete course: ${res.status}`);
-        delete courseDbIdMap.current[id];
-      } catch (e) {
-        console.error('[AcadenceContext] deleteCourse API error:', e);
-        setCourseData(prevCourseData!);
-        setAttendanceState(prevAttendance!);
-      }
-    })();
   }, []);
 
   const updateCourse = useCallback((id: string, field: 'name' | 'instructor', value: string) => {
-    let prevCourseData: CourseData;
-    setCourseData((prev) => {
-      prevCourseData = prev;
-      return { ...prev, [id]: { ...prev[id], [field]: value } };
-    });
-
-    const dbId = courseDbIdMap.current[id];
-    if (!dbId) return;
-    (async () => {
-      try {
-        const res = await apiFetch(`/courses/${dbId}`, {
-          method: 'PUT',
-          body: JSON.stringify({ [field]: value }),
-        });
-        if (!res.ok) throw new Error(`Failed to update course: ${res.status}`);
-      } catch (e) {
-        console.error('[AcadenceContext] updateCourse API error:', e);
-        setCourseData(prevCourseData!);
-      }
-    })();
+    setCourseData((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value },
+    }));
   }, []);
 
-  // ── Student mutations ─────────────────────────────────────────────────────────
+  // ── Student mutations ───────────────────────────────────────────────────────
 
   const addStudent = useCallback((courseId: string, student: Omit<Student, 'scores'>) => {
-    let prevCourseData: CourseData;
     setCourseData((prev) => {
-      prevCourseData = prev;
       const course = prev[courseId];
       if (!course) return prev;
-      if (course.students.some((s) => s.id === student.id)) return prev;
       const scores: Record<string, number> = {};
       course.assignments.forEach((a) => { scores[a.id] = 0; });
       return {
         ...prev,
-        [courseId]: { ...course, students: [...course.students, { ...student, scores }] },
+        [courseId]: {
+          ...course,
+          students: [...course.students, { ...student, scores }],
+        },
       };
     });
-
-    const dbCourseId = courseDbIdMap.current[courseId];
-    (async () => {
-      try {
-        const dbStudentId = await ensureStudentInDb(student);
-        if (!dbStudentId || !dbCourseId) throw new Error('Missing DB IDs');
-        const res = await apiFetch('/enrollments', {
-          method: 'POST',
-          body: JSON.stringify({ student_id: dbStudentId, course_id: dbCourseId, semester: '2025-2' }),
-        });
-        if (!res.ok && res.status !== 409) throw new Error(`Enrollment failed: ${res.status}`);
-      } catch (e) {
-        console.error('[AcadenceContext] addStudent API error:', e);
-        setCourseData(prevCourseData!);
-      }
-    })();
   }, []);
 
   const importStudents = useCallback(
@@ -465,8 +272,6 @@ export function AcadenceProvider({
       let imported = 0;
       let skipped = 0;
       const logs: string[] = [];
-      const toAdd: Omit<Student, 'scores'>[] = [];
-
       setCourseData((prev) => {
         const course = prev[courseId];
         if (!course) return prev;
@@ -479,70 +284,32 @@ export function AcadenceProvider({
             return;
           }
           const scores: Record<string, number> = {};
-          course.assignments.forEach((a) => { scores[a.id] = 0; });
+          course.assignments.forEach((a) => { scores[a.id] = 100; });
           updatedStudents.push({ ...s, scores });
-          toAdd.push(s);
           imported++;
         });
         return { ...prev, [courseId]: { ...course, students: updatedStudents } };
       });
-
-      // Background API calls
-      const dbCourseId = courseDbIdMap.current[courseId];
-      if (dbCourseId) {
-        (async () => {
-          for (const s of toAdd) {
-            try {
-              const dbStudentId = await ensureStudentInDb(s);
-              if (!dbStudentId) continue;
-              await apiFetch('/enrollments', {
-                method: 'POST',
-                body: JSON.stringify({ student_id: dbStudentId, course_id: dbCourseId, semester: '2025-2' }),
-              });
-            } catch (e) {
-              console.error('[AcadenceContext] importStudents API error for', s.id, e);
-            }
-          }
-        })();
-      }
-
       return { imported, skipped, logs };
     },
     []
   );
 
-  // ── Score mutations ───────────────────────────────────────────────────────────
+  // ── Score mutations ─────────────────────────────────────────────────────────
 
   const updateScore = useCallback((courseId: string, studentId: string, assignmentId: string, score: number) => {
-    let prevCourseData: CourseData;
     setCourseData((prev) => {
-      prevCourseData = prev;
       const course = prev[courseId];
       if (!course) return prev;
       const students = course.students.map((s) =>
         s.id === studentId ? { ...s, scores: { ...s.scores, [assignmentId]: score } } : s
       );
-      return { ...prev, [courseId]: { ...course, students, passRate: computeCoursePassRate({ ...course, students }) } };
+      const passRate = computeCoursePassRate({ ...course, students });
+      return {
+        ...prev,
+        [courseId]: { ...course, students, passRate },
+      };
     });
-
-    const dbStudentId = studentDbIdMap.current[studentId];
-    const dbAssignmentId = parseInt(assignmentId);
-    if (!dbStudentId || isNaN(dbAssignmentId)) return;
-
-    (async () => {
-      try {
-        const res = await apiFetch('/grades/upsert', {
-          method: 'PUT',
-          body: JSON.stringify({ student_id: dbStudentId, assignment_id: dbAssignmentId, score }),
-        });
-        if (!res.ok) throw new Error(`Grade upsert failed: ${res.status}`);
-        const g = await res.json();
-        gradeIdMap.current[`${dbStudentId}:${dbAssignmentId}`] = g.id;
-      } catch (e) {
-        console.error('[AcadenceContext] updateScore API error:', e);
-        setCourseData(prevCourseData!);
-      }
-    })();
   }, []);
 
   const importGrades = useCallback(
@@ -550,8 +317,6 @@ export function AcadenceProvider({
       let imported = 0;
       let skipped = 0;
       const logs: string[] = [];
-      const toUpsert: Array<{ studentId: string; assignmentId: string; score: number }> = [];
-
       setCourseData((prev) => {
         const course = prev[courseId];
         if (!course) return prev;
@@ -575,111 +340,39 @@ export function AcadenceProvider({
           }
           const constrained = Math.max(0, Math.min(assignment.maxPoints || 100, g.score));
           student.scores[assignment.id] = constrained;
-          toUpsert.push({ studentId: student.id, assignmentId: assignment.id, score: constrained });
           imported++;
         });
         return { ...prev, [courseId]: { ...course, students } };
       });
-
-      // Background API calls
-      (async () => {
-        for (const { studentId, assignmentId, score } of toUpsert) {
-          const dbStudentId = studentDbIdMap.current[studentId];
-          const dbAssignmentId = parseInt(assignmentId);
-          if (!dbStudentId || isNaN(dbAssignmentId)) continue;
-          try {
-            const res = await apiFetch('/grades/upsert', {
-              method: 'PUT',
-              body: JSON.stringify({ student_id: dbStudentId, assignment_id: dbAssignmentId, score }),
-            });
-            if (res.ok) {
-              const g = await res.json();
-              gradeIdMap.current[`${dbStudentId}:${dbAssignmentId}`] = g.id;
-            }
-          } catch (e) {
-            console.error('[AcadenceContext] importGrades API error:', e);
-          }
-        }
-      })();
-
       return { imported, skipped, logs };
     },
     []
   );
 
-  // ── Assignment mutations ──────────────────────────────────────────────────────
+  // ── Assignment mutations ────────────────────────────────────────────────────
 
   const addAssignment = useCallback((courseId: string, assignment: Omit<Assignment, 'id'>) => {
-    const tempId = 'tmp-' + Date.now();
-    let prevCourseData: CourseData;
-
+    const newId = 'a' + Date.now();
     setCourseData((prev) => {
-      prevCourseData = prev;
       const course = prev[courseId];
       if (!course) return prev;
       const students = course.students.map((s) => ({
         ...s,
-        scores: { ...s.scores, [tempId]: 0 },
+        scores: { ...s.scores, [newId]: 0 },
       }));
       return {
         ...prev,
         [courseId]: {
           ...course,
-          assignments: [...course.assignments, { ...assignment, id: tempId }],
+          assignments: [...course.assignments, { ...assignment, id: newId }],
           students,
         },
       };
     });
-
-    const dbCourseId = courseDbIdMap.current[courseId];
-    if (!dbCourseId) return;
-
-    (async () => {
-      try {
-        const res = await apiFetch('/assignments', {
-          method: 'POST',
-          body: JSON.stringify({
-            course_id: dbCourseId,
-            name: assignment.name,
-            type: 'homework',
-            max_score: assignment.maxPoints,
-            weight: assignment.weight / 100,
-          }),
-        });
-        if (!res.ok) throw new Error(`Create assignment failed: ${res.status}`);
-        const dbA = await res.json();
-        const realId = String(dbA.id);
-
-        // Replace temp ID with real DB ID
-        setCourseData((prev) => {
-          const course = prev[courseId];
-          if (!course) return prev;
-          const assignments = course.assignments.map((a) =>
-            a.id === tempId
-              ? { id: realId, name: dbA.name, weight: Math.round(parseFloat(dbA.weight) * 100), maxPoints: parseFloat(dbA.max_score) }
-              : a
-          );
-          const students = course.students.map((s) => {
-            const scores = { ...s.scores };
-            if (scores[tempId] !== undefined) {
-              scores[realId] = scores[tempId];
-              delete scores[tempId];
-            }
-            return { ...s, scores };
-          });
-          return { ...prev, [courseId]: { ...course, assignments, students } };
-        });
-      } catch (e) {
-        console.error('[AcadenceContext] addAssignment API error:', e);
-        setCourseData(prevCourseData!);
-      }
-    })();
   }, []);
 
   const deleteAssignment = useCallback((courseId: string, assignmentId: string) => {
-    let prevCourseData: CourseData;
     setCourseData((prev) => {
-      prevCourseData = prev;
       const course = prev[courseId];
       if (!course) return prev;
       return {
@@ -690,25 +383,10 @@ export function AcadenceProvider({
         },
       };
     });
-
-    const dbAssignmentId = parseInt(assignmentId);
-    if (isNaN(dbAssignmentId)) return;
-
-    (async () => {
-      try {
-        const res = await apiFetch(`/assignments/${dbAssignmentId}`, { method: 'DELETE' });
-        if (!res.ok && res.status !== 204) throw new Error(`Delete assignment failed: ${res.status}`);
-      } catch (e) {
-        console.error('[AcadenceContext] deleteAssignment API error:', e);
-        setCourseData(prevCourseData!);
-      }
-    })();
   }, []);
 
   const updateAssignment = useCallback((courseId: string, assignment: Assignment) => {
-    let prevCourseData: CourseData;
     setCourseData((prev) => {
-      prevCourseData = prev;
       const course = prev[courseId];
       if (!course) return prev;
       return {
@@ -719,149 +397,48 @@ export function AcadenceProvider({
         },
       };
     });
-
-    const dbAssignmentId = parseInt(assignment.id);
-    if (isNaN(dbAssignmentId)) return;
-
-    (async () => {
-      try {
-        const res = await apiFetch(`/assignments/${dbAssignmentId}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            name: assignment.name,
-            max_score: assignment.maxPoints,
-            weight: assignment.weight / 100,
-          }),
-        });
-        if (!res.ok) throw new Error(`Update assignment failed: ${res.status}`);
-      } catch (e) {
-        console.error('[AcadenceContext] updateAssignment API error:', e);
-        setCourseData(prevCourseData!);
-      }
-    })();
   }, []);
 
-  // ── Attendance mutations ──────────────────────────────────────────────────────
+  // ── Attendance mutations ────────────────────────────────────────────────────
 
   const addSession = useCallback((courseId: string, session: Omit<Session, 'id' | 'records'>) => {
-    const tempId = 'tmp-' + Date.now();
-    let prevAttendance: AttendanceState;
-
-    setAttendanceState((prev) => {
-      prevAttendance = prev;
-      return {
-        ...prev,
-        [courseId]: {
-          sessions: [...(prev[courseId]?.sessions || []), { ...session, id: tempId, records: {} }],
-        },
-      };
-    });
-
-    const dbCourseId = courseDbIdMap.current[courseId];
-    if (!dbCourseId) return;
-
-    (async () => {
-      try {
-        const res = await apiFetch('/sessions', {
-          method: 'POST',
-          body: JSON.stringify({
-            course_id: dbCourseId,
-            name: session.name,
-            date: session.date,
-            time_slot: session.time || '',
-          }),
-        });
-        if (!res.ok) throw new Error(`Create session failed: ${res.status}`);
-        const dbS = await res.json();
-        const realId = String(dbS.id);
-
-        // Replace temp ID with real DB ID
-        setAttendanceState((prev) => ({
-          ...prev,
-          [courseId]: {
-            sessions: (prev[courseId]?.sessions || []).map((s) =>
-              s.id === tempId ? { ...s, id: realId } : s
-            ),
-          },
-        }));
-      } catch (e) {
-        console.error('[AcadenceContext] addSession API error:', e);
-        setAttendanceState(prevAttendance!);
-      }
-    })();
+    const newId = 's' + Date.now();
+    setAttendanceState((prev) => ({
+      ...prev,
+      [courseId]: {
+        sessions: [...(prev[courseId]?.sessions || []), { ...session, id: newId, records: {} }],
+      },
+    }));
   }, []);
 
   const updateSession = useCallback(
     (courseId: string, sessionId: string, updates: { name?: string; date?: string; time?: string }) => {
-      let prevAttendance: AttendanceState;
-      setAttendanceState((prev) => {
-        prevAttendance = prev;
-        return {
-          ...prev,
-          [courseId]: {
-            ...prev[courseId],
-            sessions: (prev[courseId]?.sessions || []).map((s) =>
-              s.id === sessionId ? { ...s, ...updates } : s
-            ),
-          },
-        };
-      });
-
-      const dbSessionId = parseInt(sessionId);
-      if (isNaN(dbSessionId)) return;
-
-      (async () => {
-        try {
-          const res = await apiFetch(`/sessions/${dbSessionId}`, {
-            method: 'PUT',
-            body: JSON.stringify({ name: updates.name, date: updates.date, time_slot: updates.time }),
-          });
-          if (!res.ok) throw new Error(`Update session failed: ${res.status}`);
-        } catch (e) {
-          console.error('[AcadenceContext] updateSession API error:', e);
-          setAttendanceState(prevAttendance!);
-        }
-      })();
+      setAttendanceState((prev) => ({
+        ...prev,
+        [courseId]: {
+          ...prev[courseId],
+          sessions: (prev[courseId]?.sessions || []).map((s) =>
+            s.id === sessionId ? { ...s, ...updates } : s
+          ),
+        },
+      }));
     },
     []
   );
 
   const setAttendance = useCallback(
     (courseId: string, sessionId: string, studentId: string, status: AttendanceStatus) => {
-      let prevAttendance: AttendanceState;
-      setAttendanceState((prev) => {
-        prevAttendance = prev;
-        return {
-          ...prev,
-          [courseId]: {
-            ...prev[courseId],
-            sessions: (prev[courseId]?.sessions || []).map((s) =>
-              s.id === sessionId
-                ? { ...s, records: { ...s.records, [studentId]: status } }
-                : s
-            ),
-          },
-        };
-      });
-
-      const dbSessionId = parseInt(sessionId);
-      const dbStudentId = studentDbIdMap.current[studentId];
-      if (isNaN(dbSessionId) || !dbStudentId) return;
-
-      (async () => {
-        try {
-          const res = await apiFetch(`/sessions/${dbSessionId}/attendance`, {
-            method: 'POST',
-            body: JSON.stringify({ student_db_id: dbStudentId, status }),
-          });
-          if (!res.ok) throw new Error(`Set attendance failed: ${res.status}`);
-          const r = await res.json();
-          attendRecordIdMap.current[`${dbSessionId}:${dbStudentId}`] = r.id;
-        } catch (e) {
-          console.error('[AcadenceContext] setAttendance API error:', e);
-          setAttendanceState(prevAttendance!);
-        }
-      })();
+      setAttendanceState((prev) => ({
+        ...prev,
+        [courseId]: {
+          ...prev[courseId],
+          sessions: (prev[courseId]?.sessions || []).map((s) =>
+            s.id === sessionId
+              ? { ...s, records: { ...s.records, [studentId]: status } }
+              : s
+          ),
+        },
+      }));
     },
     []
   );
@@ -870,35 +447,36 @@ export function AcadenceProvider({
     (courseId: string) => {
       setAttendanceState((prev) => {
         const sessions = prev[courseId]?.sessions || [];
-        setCourseData((prev2) => {
-          const students = prev2[courseId]?.students || [];
-          if (!students.length || !sessions.length) return prev2;
-          let totalRateSum = 0;
-          students.forEach((student) => {
-            let presentCount = 0;
-            let lateCount = 0;
-            let totalSessions = 0;
-            sessions.forEach((s) => {
-              if (s.records && s.records[student.id]) {
-                totalSessions++;
-                if (s.records[student.id] === 'present') presentCount++;
-                else if (s.records[student.id] === 'late') lateCount++;
-              }
-            });
-            const equivalentAbsencesFromLates = Math.floor(lateCount / 2);
-            const attended = presentCount + lateCount - equivalentAbsencesFromLates;
-            totalRateSum += totalSessions > 0 ? Math.round((Math.max(0, attended) / totalSessions) * 100) : 100;
+        const students = courseData[courseId]?.students || [];
+        if (!students.length || !sessions.length) return prev;
+        let totalRateSum = 0;
+        students.forEach((student) => {
+          let presentCount = 0;
+          let lateCount = 0;
+          let totalSessions = 0;
+          sessions.forEach((s) => {
+            if (s.records && s.records[student.id]) {
+              totalSessions++;
+              if (s.records[student.id] === 'present') presentCount++;
+              else if (s.records[student.id] === 'late') lateCount++;
+            }
           });
-          const newRate = Math.round(totalRateSum / students.length) + '%';
-          return { ...prev2, [courseId]: { ...prev2[courseId], attendanceRate: newRate } };
+          const equivalentAbsencesFromLates = Math.floor(lateCount / 2);
+          const attended = presentCount + lateCount - equivalentAbsencesFromLates;
+          totalRateSum += totalSessions > 0 ? Math.round((Math.max(0, attended) / totalSessions) * 100) : 100;
         });
+        const newRate = Math.round(totalRateSum / students.length) + '%';
+        setCourseData((prev2) => ({
+          ...prev2,
+          [courseId]: { ...prev2[courseId], attendanceRate: newRate },
+        }));
         return prev;
       });
     },
-    []
+    [courseData]
   );
 
-  // ── Profile mutations ─────────────────────────────────────────────────────────
+  // ── Profile mutations ───────────────────────────────────────────────────────
 
   const updateProfile = useCallback((updates: Partial<ProfileData>) => {
     setProfileData((prev) => ({ ...prev, ...updates }));
@@ -908,7 +486,7 @@ export function AcadenceProvider({
     setSettingsData((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  // ── Student read helpers ──────────────────────────────────────────────────────
+  // ── Student read helpers ────────────────────────────────────────────────────
 
   const getStudentCourses = useCallback(
     (studentId: string) =>
@@ -916,7 +494,7 @@ export function AcadenceProvider({
         .filter(([, course]) =>
           course.students.some((s) => s.id === studentId && s.status === 'Enrolled')
         )
-        .map(([cId, course]) => ({ courseId: cId, course })),
+        .map(([courseId, course]) => ({ courseId, course })),
     [courseData]
   );
 
@@ -951,9 +529,6 @@ export function AcadenceProvider({
         attendanceState,
         profileData,
         settingsData,
-        loading,
-        error,
-        refreshData,
         addCourse,
         deleteCourse,
         updateCourse,

@@ -286,20 +286,12 @@ class FileIOService:
     # CSV Export
     # ------------------------------------------------------------------
 
-    def export_grades_csv(
-        self,
-        course_id: Optional[int],
-        db: Session,
-        allowed_course_ids: Optional[set] = None,
-    ) -> str:
+    def export_grades_csv(self, course_id: Optional[int], db: Session) -> str:
         """Return a CSV string of all grades (optionally filtered by course).
 
         Columns: student_id, student_name, course_code, course_name,
                  assignment_name, assignment_type, score, max_score,
                  percentage, letter_grade
-
-        Pass ``allowed_course_ids`` to scope the export to specific courses
-        (used for per-instructor data isolation when course_id is None).
         """
         buf = io.StringIO()
         writer = csv.writer(buf)
@@ -317,8 +309,6 @@ class FileIOService:
         )
         if course_id is not None:
             q = q.filter(CourseRow.id == course_id)
-        elif allowed_course_ids is not None:
-            q = q.filter(CourseRow.id.in_(allowed_course_ids))
         q = q.order_by(CourseRow.code, StudentRow.name, AssignmentRow.name)
 
         for grade, student, asgn, course in q.all():

@@ -153,42 +153,6 @@ def me_gpa(request: Request, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/me/attendance")
-def me_attendance(request: Request, db: Session = Depends(get_db)):
-    """Return attendance records for the authenticated student."""
-    from src.db.models import SessionRow, AttendanceRecordRow
-    s = get_student_from_request(request, db)
-    enrollments = db.query(EnrollmentRow).filter(EnrollmentRow.student_id == s.id).all()
-    course_ids = [e.course_id for e in enrollments]
-    if not course_ids:
-        return []
-    sessions = (
-        db.query(SessionRow)
-        .filter(SessionRow.course_id.in_(course_ids))
-        .order_by(SessionRow.date, SessionRow.created_at)
-        .all()
-    )
-    result = []
-    for sess in sessions:
-        record = (
-            db.query(AttendanceRecordRow)
-            .filter(AttendanceRecordRow.session_id == sess.id, AttendanceRecordRow.student_id == s.id)
-            .first()
-        )
-        course = db.query(CourseRow).filter(CourseRow.id == sess.course_id).first()
-        result.append({
-            "session_id": sess.id,
-            "course_id": sess.course_id,
-            "course_code": course.code if course else "",
-            "course_name": course.name if course else "",
-            "session_name": sess.name,
-            "date": sess.date,
-            "time_slot": sess.time_slot or "",
-            "status": record.status if record else "unknown",
-        })
-    return result
-
-
 @router.get("/me/predictions")
 def me_predictions(request: Request, db: Session = Depends(get_db)):
     s = get_student_from_request(request, db)
