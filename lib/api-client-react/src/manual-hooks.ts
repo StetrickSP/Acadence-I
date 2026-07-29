@@ -30,3 +30,33 @@ export const useGetCourseRankings = (
     enabled: courseId > 0,
     ...options,
   });
+
+// ---------------------------------------------------------------------------
+// Risk Alerts (cross-course at-risk panel)
+// ---------------------------------------------------------------------------
+
+export interface RiskAlertEntry {
+  student_id: number;
+  student_name: string;
+  course_id: number;
+  course_name: string;
+  course_code: string;
+  predicted_score: number;
+  predicted_letter: string;
+  attendance_rate: number | null;
+  risk_level: string;
+  risk_reason: string | null;
+  confidence: number;
+}
+
+export const getRiskAlerts = (): Promise<RiskAlertEntry[]> =>
+  customFetch<RiskAlertEntry[]>(`/api/predictions/alerts`);
+
+export const useRiskAlerts = (
+  options?: Omit<UseQueryOptions<RiskAlertEntry[], Error>, "queryKey" | "queryFn">,
+): UseQueryResult<RiskAlertEntry[], Error> =>
+  useQuery<RiskAlertEntry[], Error>({
+    queryKey: ["riskAlerts"],
+    queryFn: getRiskAlerts,
+    ...options,
+  });

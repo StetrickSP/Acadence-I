@@ -11,8 +11,11 @@ import { Link } from 'wouter';
 import {
   usePredictGrade, usePredictAtRisk, useListCourses, useListStudents,
 } from '@workspace/api-client-react';
+import { useRiskAlerts } from '@workspace/api-client-react';
+import type { RiskAlertEntry } from '@workspace/api-client-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, AlertTriangle, Zap } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Zap, Bell, User, BookOpen } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function Predictions() {
   const [selectedCourse, setSelectedCourse] = useState<string>('');
@@ -24,6 +27,8 @@ export default function Predictions() {
     predicted_letter: string;
     confidence: number;
     risk_level: string;
+    risk_reason?: string | null;
+    attendance_rate?: number | null;
     factors: { factor: string; weight: number; value: number }[];
   } | null>(null);
   const [predicting, setPredicting] = useState(false);
@@ -32,6 +37,7 @@ export default function Predictions() {
   const { data: students } = useListStudents({});
   const predCourseId = selectedCourse ? Number(selectedCourse) : (courses?.[0]?.id ?? 0);
   const { data: atRiskPredictions, isLoading: atRiskLoading } = usePredictAtRisk(predCourseId);
+  const { data: alerts, isLoading: alertsLoading } = useRiskAlerts();
 
   const predictGrade = usePredictGrade();
 
@@ -56,6 +62,8 @@ export default function Predictions() {
     );
   };
 
+  const highRiskCount = alerts?.filter((a) => a.risk_level === 'high').length ?? 0;
+
   return (
     <AppShell>
       <div className="p-6 lg:p-8 space-y-8">
@@ -64,157 +72,263 @@ export default function Predictions() {
           <p className="text-muted-foreground">AI-powered grade forecasting and risk assessment</p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Individual Grade Predictor */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-display flex items-center gap-2">
-                <Zap className="w-5 h-5 text-amber-500" />
-                Individual Grade Predictor
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Student</Label>
-                <Select value={predictStudentId} onValueChange={setPredictStudentId}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Select student" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {students?.map((s) => (
-                      <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Course</Label>
-                <Select value={predictCourseId} onValueChange={setPredictCourseId}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Select course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses?.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)}>{c.code} — {c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Midterm Score Override (Optional)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="Leave empty to use actual grade"
-                  value={midtermScore}
-                  onChange={(e) => setMidtermScore(e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-              <Button
-                className="w-full"
-                onClick={runPrediction}
-                disabled={!predictStudentId || !predictCourseId || predicting}
-                data-testid="button-run-prediction"
-              >
-                {predicting ? 'Predicting...' : 'Run Prediction'}
-              </Button>
-
-              {predictResult && (
-                <div className="mt-4 p-4 rounded-xl border border-border bg-muted/30 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Predicted Final Grade</p>
-                      <p className="text-4xl font-mono font-bold text-primary">{predictResult.predicted_score.toFixed(1)}%</p>
-                    </div>
-                    <div className="text-right space-y-2">
-                      <GradeBadge letter={predictResult.predicted_letter} size="lg" />
-                      <div><RiskBadge level={predictResult.risk_level} /></div>
-                      <p className="text-xs text-muted-foreground">{predictResult.confidence}% confidence</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-foreground mb-3">Prediction Factors</p>
-                    <div className="space-y-3">
-                      {predictResult.factors.map((f) => (
-                        <div key={f.factor} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-foreground">{f.factor}</span>
-                            <span className="text-muted-foreground font-mono">{f.value.toFixed(1)}% (weight: {(f.weight * 100).toFixed(0)}%)</span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-1.5">
-                            <div
-                              className="bg-primary h-1.5 rounded-full transition-all"
-                              style={{ width: `${Math.min(100, f.value)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+        <Tabs defaultValue="predictor">
+          <TabsList className="mb-6">
+            <TabsTrigger value="predictor" className="flex items-center gap-2">
+              <Zap className="w-4 h-4" />
+              Individual Predictor
+            </TabsTrigger>
+            <TabsTrigger value="course" className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Course Forecast
+            </TabsTrigger>
+            <TabsTrigger value="alerts" className="flex items-center gap-2 relative">
+              <Bell className="w-4 h-4" />
+              Alerts
+              {highRiskCount > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs font-bold w-5 h-5">
+                  {highRiskCount}
+                </span>
               )}
-            </CardContent>
-          </Card>
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Course-level At-Risk Prediction */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-display flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
-                Course At-Risk Forecast
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4">
-                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses?.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)}>{c.code} — {c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* ── Individual Grade Predictor ── */}
+          <TabsContent value="predictor">
+            <div className="max-w-xl">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-display flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-amber-500" />
+                    Individual Grade Predictor
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Student</Label>
+                    <Select value={predictStudentId} onValueChange={setPredictStudentId}>
+                      <SelectTrigger className="mt-1.5">
+                        <SelectValue placeholder="Select student" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {students?.map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Course</Label>
+                    <Select value={predictCourseId} onValueChange={setPredictCourseId}>
+                      <SelectTrigger className="mt-1.5">
+                        <SelectValue placeholder="Select course" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses?.map((c) => (
+                          <SelectItem key={c.id} value={String(c.id)}>{c.code} — {c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Midterm Score Override (Optional)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="Leave empty to use actual grade"
+                      value={midtermScore}
+                      onChange={(e) => setMidtermScore(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={runPrediction}
+                    disabled={!predictStudentId || !predictCourseId || predicting}
+                    data-testid="button-run-prediction"
+                  >
+                    {predicting ? 'Predicting...' : 'Run Prediction'}
+                  </Button>
 
-              {atRiskLoading ? (
-                <div className="space-y-3">
-                  {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-14" />)}
-                </div>
-              ) : atRiskPredictions && atRiskPredictions.length > 0 ? (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {atRiskPredictions.map((p) => (
-                    <Link key={p.student_id} href={`/students/${p.student_id}`}>
-                      <div className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{p.student_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Current: {p.current_score?.toFixed(1) ?? 'N/A'}% → Predicted: {p.predicted_score.toFixed(1)}%
-                          </p>
+                  {predictResult && (
+                    <div className="mt-4 p-4 rounded-xl border border-border bg-muted/30 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Predicted Final Grade</p>
+                          <p className="text-4xl font-mono font-bold text-primary">{predictResult.predicted_score.toFixed(1)}%</p>
                         </div>
-                        <div className="flex items-center gap-2 ml-2 shrink-0">
-                          <GradeBadge letter={p.predicted_letter} size="sm" />
-                          <RiskBadge level={p.risk_level} />
+                        <div className="text-right space-y-2">
+                          <GradeBadge letter={predictResult.predicted_letter} size="lg" />
+                          <div>
+                            <RiskBadge level={predictResult.risk_level} reason={predictResult.risk_reason} />
+                          </div>
+                          <p className="text-xs text-muted-foreground">{predictResult.confidence}% confidence</p>
                         </div>
                       </div>
-                    </Link>
-                  ))}
+
+                      {predictResult.attendance_rate != null && (
+                        <div className="flex items-center justify-between text-sm border-t border-border pt-3">
+                          <span className="text-muted-foreground">Attendance Rate</span>
+                          <span className={`font-mono font-medium ${predictResult.attendance_rate < 0.8 ? 'text-destructive' : 'text-foreground'}`}>
+                            {(predictResult.attendance_rate * 100).toFixed(0)}%
+                            {predictResult.attendance_rate < 0.8 && ' ⚠'}
+                          </span>
+                        </div>
+                      )}
+
+                      <div>
+                        <p className="text-sm font-medium text-foreground mb-3">Prediction Factors</p>
+                        <div className="space-y-3">
+                          {predictResult.factors.map((f) => (
+                            <div key={f.factor} className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-foreground">{f.factor}</span>
+                                <span className="text-muted-foreground font-mono">{f.value.toFixed(1)}%{f.weight > 0 ? ` (weight: ${(f.weight * 100).toFixed(0)}%)` : ''}</span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1.5">
+                                <div
+                                  className="bg-primary h-1.5 rounded-full transition-all"
+                                  style={{ width: `${Math.min(100, f.value)}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ── Course At-Risk Forecast ── */}
+          <TabsContent value="course">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-display flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                  Course At-Risk Forecast
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a course" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses?.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>{c.code} — {c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ) : (
-                <div className="text-center py-10">
-                  <TrendingUp className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground text-sm">
-                    {selectedCourse ? 'No predictions available yet — add more grade data.' : 'Select a course to view predictions'}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+
+                {atRiskLoading ? (
+                  <div className="space-y-3">
+                    {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-14" />)}
+                  </div>
+                ) : atRiskPredictions && atRiskPredictions.length > 0 ? (
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {atRiskPredictions.map((p) => (
+                      <Link key={p.student_id} href={`/students/${p.student_id}`}>
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{p.student_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Current: {p.current_score?.toFixed(1) ?? 'N/A'}% → Predicted: {p.predicted_score.toFixed(1)}%
+                              {(p as any).attendance_rate != null && ` · Attendance: ${((p as any).attendance_rate * 100).toFixed(0)}%`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 ml-2 shrink-0">
+                            <GradeBadge letter={p.predicted_letter} size="sm" />
+                            <RiskBadge level={p.risk_level} reason={(p as any).risk_reason} />
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10">
+                    <TrendingUp className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground text-sm">
+                      {selectedCourse ? 'No predictions available yet — add more grade data.' : 'Select a course to view predictions'}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ── Cross-Course Alerts Panel ── */}
+          <TabsContent value="alerts">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-display flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-destructive" />
+                  At-Risk Alerts
+                  {alerts && alerts.length > 0 && (
+                    <span className="ml-auto text-sm font-normal text-muted-foreground">
+                      {alerts.length} student{alerts.length !== 1 ? 's' : ''} flagged
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {alertsLoading ? (
+                  <div className="space-y-3">
+                    {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16" />)}
+                  </div>
+                ) : alerts && alerts.length > 0 ? (
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                    {alerts.map((alert: RiskAlertEntry, idx: number) => (
+                      <Link key={`${alert.student_id}-${alert.course_id}-${idx}`} href={`/students/${alert.student_id}`}>
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer">
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <p className="text-sm font-medium text-foreground truncate">{alert.student_name}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <BookOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <p className="text-xs text-muted-foreground truncate">
+                                {alert.course_code} — {alert.course_name}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <span>Predicted: <span className="font-mono text-foreground">{alert.predicted_score.toFixed(1)}%</span></span>
+                              {alert.attendance_rate != null && (
+                                <span>
+                                  Attendance:{' '}
+                                  <span className={`font-mono ${alert.attendance_rate < 0.8 ? 'text-destructive font-medium' : 'text-foreground'}`}>
+                                    {(alert.attendance_rate * 100).toFixed(0)}%
+                                  </span>
+                                </span>
+                              )}
+                              <span className="text-muted-foreground/60">{alert.confidence}% confidence</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-3 shrink-0">
+                            <GradeBadge letter={alert.predicted_letter} size="sm" />
+                            <RiskBadge level={alert.risk_level} reason={alert.risk_reason} />
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-14">
+                    <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-base font-medium text-foreground mb-1">No at-risk students detected</p>
+                    <p className="text-sm text-muted-foreground">All students are currently on track across all courses.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppShell>
   );

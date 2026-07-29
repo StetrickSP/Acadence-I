@@ -1,11 +1,11 @@
-"""Prediction routes — grade prediction + at-risk by course."""
+"""Prediction routes — grade prediction + at-risk by course + cross-course alerts."""
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.db.session import get_db
-from src.db.models import AssignmentRow, GradeRow, EnrollmentRow, StudentRow
+from src.db.models import AssignmentRow, GradeRow, EnrollmentRow, StudentRow, CourseRow
 from src.domain.grade_utils import to_percent, score_to_letter, risk_level
 from src.services.prediction_service import GradePredictionModel
 
@@ -36,6 +36,8 @@ def predict_grade(body: PredictGradeBody, db: Session = Depends(get_db)):
         "predicted_letter": score_to_letter(score),
         "confidence": result["confidence"],
         "risk_level": result["risk_level"],
+        "risk_reason": result.get("risk_reason"),
+        "attendance_rate": result.get("attendance_rate"),
         "factors": result["factors"],
     }
 
@@ -82,9 +84,61 @@ def at_risk_by_course(course_id: int, db: Session = Depends(get_db)):
             "predicted_score": predicted_score,
             "predicted_letter": score_to_letter(predicted_score),
             "risk_level": pred["risk_level"],
+            "risk_reason": pred.get("risk_reason"),
+            "attendance_rate": pred.get("attendance_rate"),
             "confidence": pred["confidence"],
             "current_score": current_score,
         })
 
     result.sort(key=lambda x: x["predicted_score"])
     return result
+
+
+@router.get("/predictions/alerts")
+def get_alerts(db: Session = Depends(get_db)):
+    """
+    Aggregate at-risk students (high or medium risk) across all courses.
+    Returns a sorted list — high risk first, then medium — with name, course, predicted
+    grade, attendance rate, and the reason the risk was triggered.
+    """
+    enrollments = db.query(EnrollmentRow).all()
+
+    # Build a model cache per course to avoid re-training for each student
+    model_cache: dict[int, GradePredictionModel] = {}
+
+    alerts = []
+    for enr in enrollments:
+        student = db.query(StudentRow).filter(StudentRow.id == enr.student_id).first()
+        if not student:
+            continue
+
+        course = db.query(CourseRow).filter(CourseRow.id == enr.course_id).first()
+        if not course:
+            continue
+
+        if enr.course_id not in model_cache:
+            model_cache[enr.course_id] = GradePredictionModel(db, course_id=enr.course_id)
+        model = model_cache[enr.course_id]
+
+        pred = model.predict(student_id=enr.student_id, course_id=enr.course_id)
+
+        if pred["risk_level"] in ("high", "medium"):
+            predicted_score = round(pred["predicted_score"] * 10) / 10
+            alerts.append({
+                "student_id": student.id,
+                "student_name": student.name,
+                "course_id": course.id,
+                "course_name": course.name,
+                "course_code": course.code,
+                "predicted_score": predicted_score,
+                "predicted_letter": score_to_letter(predicted_score),
+                "attendance_rate": pred.get("attendance_rate"),
+                "risk_level": pred["risk_level"],
+                "risk_reason": pred.get("risk_reason"),
+                "confidence": pred["confidence"],
+            })
+
+    # Sort: high risk first, then medium; within same level sort by predicted score ascending
+    risk_order = {"high": 0, "medium": 1}
+    alerts.sort(key=lambda x: (risk_order.get(x["risk_level"], 2), x["predicted_score"]))
+    return alerts

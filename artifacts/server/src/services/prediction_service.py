@@ -5,8 +5,8 @@ import numpy as np
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from src.db.models import AssignmentRow, GradeRow, EnrollmentRow
-from src.domain.grade_utils import to_percent, risk_level
+from src.db.models import AssignmentRow, GradeRow, EnrollmentRow, SessionRow, AttendanceRecordRow
+from src.domain.grade_utils import to_percent, risk_level, composite_risk
 
 # Minimum training samples required to use the ML model
 MIN_TRAINING_SAMPLES = 10
@@ -17,6 +17,28 @@ _HEURISTIC_WEIGHTS = {
     "assignments": 0.45,
     "completion": 0.20,
 }
+
+
+def _get_attendance_rate(student_id: int, course_id: int, db: Session) -> float:
+    """
+    Compute attendance rate for a student in a course.
+    Returns fraction 0.0–1.0. Returns 1.0 (neutral) if no sessions recorded.
+    """
+    sessions = db.query(SessionRow).filter(SessionRow.course_id == course_id).all()
+    if not sessions:
+        return 1.0  # no sessions recorded — treat as neutral
+
+    session_ids = [s.id for s in sessions]
+    present_count = (
+        db.query(AttendanceRecordRow)
+        .filter(
+            AttendanceRecordRow.session_id.in_(session_ids),
+            AttendanceRecordRow.student_id == student_id,
+            AttendanceRecordRow.status.in_(["present", "late"]),
+        )
+        .count()
+    )
+    return present_count / len(sessions)
 
 
 def _heuristic_predict(
@@ -33,7 +55,8 @@ def _heuristic_predict(
     components.append({"value": completion_rate * 100, "weight": _HEURISTIC_WEIGHTS["completion"]})
     total_weight = sum(c["weight"] for c in components)
     score = sum(c["value"] * (c["weight"] / total_weight) for c in components)
-    confidence = min(30, round(total_weight * 25 + completion_rate * 5))
+    # Heuristic confidence: clamp to 5–30% to distinguish from ML mode
+    confidence = max(5, min(30, round(total_weight * 25 + completion_rate * 5)))
     return {"score": max(0.0, min(100.0, score)), "confidence": confidence}
 
 
@@ -41,9 +64,9 @@ def _build_student_features(
     student_id: int,
     course_id: int,
     db: Session,
-) -> Optional[tuple[float, float, float]]:
+) -> Optional[tuple[float, float, float, float]]:
     """
-    Return (midterm_pct, assignment_avg_pct, completion_rate) for a student/course.
+    Return (midterm_pct, assignment_avg_pct, completion_rate, attendance_rate) for a student/course.
     Returns None if the student has no grade data at all.
     """
     assignments = db.query(AssignmentRow).filter(AssignmentRow.course_id == course_id).all()
@@ -72,11 +95,13 @@ def _build_student_features(
 
     completion_rate = submitted_count / len(assignments)
     assignment_avg = assignment_total / assignment_count if assignment_count > 0 else 0.0
+    attendance_rate = _get_attendance_rate(student_id, course_id, db)
 
     return (
         midterm_pct if midterm_pct is not None else 0.0,
         assignment_avg,
         completion_rate,
+        attendance_rate,
     )
 
 
@@ -90,6 +115,7 @@ def _collect_training_data(
     For each enrolled student (optionally filtered to one course), compute
     features and use the current weighted score as the target label.
 
+    Features: [midterm_pct, assignment_avg_pct, completion_rate*100, attendance_rate*100]
     Only students whose grades give us enough signal (at least one grade) are included.
     """
     X: list[list[float]] = []
@@ -147,10 +173,13 @@ def _collect_training_data(
         if target is None:
             continue
 
+        attendance_rate = _get_attendance_rate(enr.student_id, enr.course_id, db)
+
         X.append([
             midterm_pct if midterm_pct is not None else 0.0,
             assignment_avg,
             completion_rate * 100,
+            attendance_rate * 100,
         ])
         y.append(target)
 
@@ -215,11 +244,17 @@ class GradePredictionModel:
 
     @property
     def confidence_from_r2(self) -> int:
-        """Map R² (−∞..1] to a 0–100 confidence score, clamped."""
+        """Map R² (−∞..1] to a 10–100 confidence score.
+
+        Uses a minimum display floor of 10% when the ML model is active,
+        to distinguish from heuristic mode (which is capped at 30%).
+        """
         if self._model is None:
             return 0
         # R² can be negative; clamp to [0, 1] then scale to 0–100
-        return max(0, min(100, round(max(0.0, self._r2) * 100)))
+        # Apply a minimum floor of 10 so a low-but-positive R² doesn't show 0%
+        raw = max(0.0, self._r2) * 100
+        return max(10, min(100, round(raw)))
 
     def predict(
         self,
@@ -233,13 +268,13 @@ class GradePredictionModel:
         Predict final score for a student in a course.
 
         Returns a dict with keys:
-            predicted_score, confidence, risk_level, factors
+            predicted_score, confidence, risk_level, risk_reason, attendance_rate, factors
         """
         # Gather live student features from DB if not provided
         features = _build_student_features(student_id, course_id, self._db)
 
         if features is not None:
-            db_midterm, db_asgn_avg, db_completion = features
+            db_midterm, db_asgn_avg, db_completion, db_attendance = features
             # Override with any caller-supplied values
             if midterm_pct is None:
                 midterm_pct = db_midterm
@@ -247,24 +282,30 @@ class GradePredictionModel:
                 assignment_avg_pct = db_asgn_avg
             if completion_rate is None:
                 completion_rate = db_completion
+            attendance_rate = db_attendance
         else:
             midterm_pct = midterm_pct or 0.0
             assignment_avg_pct = assignment_avg_pct or 0.0
             completion_rate = completion_rate or 0.0
+            attendance_rate = _get_attendance_rate(student_id, course_id, self._db)
 
         factors = [
             {"factor": "Midterm Performance", "weight": 0.35, "value": round(midterm_pct or 0, 2)},
             {"factor": "Assignment Average", "weight": 0.45, "value": round(assignment_avg_pct or 0, 2)},
             {"factor": "Completion Rate", "weight": 0.20, "value": round((completion_rate or 0) * 100, 2)},
+            {"factor": "Attendance Rate", "weight": 0.00, "value": round((attendance_rate or 1.0) * 100, 2)},
         ]
 
         if not self.is_ml_active:
             # Fallback heuristic
             pred = _heuristic_predict(midterm_pct, assignment_avg_pct, completion_rate or 0.0)
+            risk = composite_risk(pred["score"], attendance_rate)
             return {
                 "predicted_score": max(0.0, min(100.0, pred["score"])),
                 "confidence": pred["confidence"],
-                "risk_level": risk_level(pred["score"]),
+                "risk_level": risk["risk_level"],
+                "risk_reason": risk["risk_reason"],
+                "attendance_rate": attendance_rate,
                 "factors": factors,
             }
 
@@ -272,13 +313,17 @@ class GradePredictionModel:
             midterm_pct or 0.0,
             assignment_avg_pct or 0.0,
             (completion_rate or 0.0) * 100,
+            (attendance_rate or 1.0) * 100,
         ]])
         raw_score = float(self._model.predict(feature_vec)[0])
         score = max(0.0, min(100.0, raw_score))
+        risk = composite_risk(score, attendance_rate)
 
         return {
             "predicted_score": score,
             "confidence": self.confidence_from_r2,
-            "risk_level": risk_level(score),
+            "risk_level": risk["risk_level"],
+            "risk_reason": risk["risk_reason"],
+            "attendance_rate": attendance_rate,
             "factors": factors,
         }
